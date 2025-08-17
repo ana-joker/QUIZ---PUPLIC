@@ -69,8 +69,8 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     }
 
     // 2. Content limits check
-    if (creationMode === 'text' && prompt.length > 10000) {
-        setError(t("promptTooLongError"));
+    if (creationMode === 'text' && prompt.length > 25000) {
+        setError(t("promptTooLongError", { count: '25,000' }));
         return;
     }
 
