@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Quiz } from '../types';
 import { generateQuizContent } from '../services/geminiService';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
@@ -39,18 +39,70 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [remainingQuestions, setRemainingQuestions] = useState(50);
 
   const { settings, setSettings } = useSettings();
   const { t, lang } = useTranslation();
+
+  useEffect(() => {
+    const MAX_TOTAL_QUESTIONS = 50;
+    const currentNumMCQs = parseInt(settings.numMCQs, 10) || 0;
+    const currentNumCases = parseInt(settings.numCases, 10) || 0;
+    const currentQPerCase = parseInt(settings.questionsPerCase, 10) || 0;
+    const currentNumImageQuestions = parseInt(settings.numImageQuestions, 10) || 0;
+
+    const totalRequested = currentNumMCQs + (currentNumCases * currentQPerCase) + currentNumImageQuestions;
+    const remaining = MAX_TOTAL_QUESTIONS - totalRequested;
+    setRemainingQuestions(remaining < 0 ? 0 : remaining);
+  }, [settings.numMCQs, settings.numCases, settings.questionsPerCase, settings.numImageQuestions]);
+
 
   const handleSettingChange = (field: keyof typeof settings, value: any) => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
   const handleGenerateQuiz = useCallback(async () => {
+    // 1. Basic input check
     if (!prompt && !selectedFile && selectedImages.length === 0) {
       setError(t("inputError"));
       return;
+    }
+
+    // 2. Content limits check
+    if (creationMode === 'text' && prompt.length > 10000) {
+        setError(t("promptTooLongError"));
+        return;
+    }
+
+    if (creationMode === 'pdf' && selectedFile) {
+        const MAX_PDF_SIZE_MB = 10;
+        if (selectedFile.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
+            setError(t("pdfTooLargeError", { size: MAX_PDF_SIZE_MB }));
+            return;
+        }
+    }
+
+    const MAX_IMAGES = 5;
+    if (selectedImages.length > MAX_IMAGES) {
+        setError(t("tooManyImagesError", { count: MAX_IMAGES }));
+        return;
+    }
+
+    // 3. Question count check
+    const totalMCQs = parseInt(settings.numMCQs, 10) || 0;
+    const totalCases = parseInt(settings.numCases, 10) || 0;
+    const qPerCase = parseInt(settings.questionsPerCase, 10) || 0;
+    const totalImageQuestions = parseInt(settings.numImageQuestions, 10) || 0;
+    const calculatedTotalQuestions = totalMCQs + (totalCases * qPerCase) + totalImageQuestions;
+
+    if (calculatedTotalQuestions <= 0) {
+        setError(t("noQuestionsRequestedError"));
+        return;
+    }
+
+    if (calculatedTotalQuestions > 50) {
+        setError(t("tooManyQuestionsError", { count: 50 }));
+        return;
     }
 
     setIsLoading(true);
@@ -158,7 +210,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                     const files = Array.from(e.target.files);
                     const combined = [...selectedImages, ...files];
                      if (combined.length > 5) {
-                        setError('You can only upload a maximum of 5 images.');
+                        setError(t("tooManyImagesError", { count: 5 }));
                         setSelectedImages(combined.slice(0, 5));
                     } else {
                         setSelectedImages(combined);
@@ -205,29 +257,38 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       <Card>
         <CardHeader>{t('step3Settings')}</CardHeader>
         <CardContent>
+          <p className="text-sm text-gray-400 mb-4 text-center">
+            {t("remainingQuestionsInfo", { count: remainingQuestions < 0 ? 0 : remainingQuestions })}
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
             <div className="space-y-2">
               <label htmlFor="num-mcqs" className="font-medium text-gray-300">{t("numMCQs")}</label>
-              <input id="num-mcqs" type="number" min="1" max="20" value={settings.numMCQs} onChange={e => handleSettingChange('numMCQs', e.target.value)}
+              <input id="num-mcqs" type="number" min="0"
+                max={50 - ((parseInt(settings.numCases, 10) || 0) * (parseInt(settings.questionsPerCase, 10) || 0)) - (parseInt(settings.numImageQuestions, 10) || 0)}
+                value={settings.numMCQs} onChange={e => handleSettingChange('numMCQs', e.target.value)}
                 className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
               />
             </div>
             <div className="space-y-2">
               <label htmlFor="num-cases" className="font-medium text-gray-300">{t("numCases")}</label>
-              <input id="num-cases" type="number" min="0" max="10" value={settings.numCases} onChange={e => handleSettingChange('numCases', e.target.value)}
+              <input id="num-cases" type="number" min="0" 
+                max={Math.floor((50 - (parseInt(settings.numMCQs, 10) || 0) - (parseInt(settings.numImageQuestions, 10) || 0)) / (parseInt(settings.questionsPerCase, 10) || 1))}
+                value={settings.numCases} onChange={e => handleSettingChange('numCases', e.target.value)}
                  className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
               />
             </div>
              <div className="space-y-2">
               <label htmlFor="questions-per-case" className="font-medium text-gray-300">{t("questionsPerCase")}</label>
-              <input id="questions-per-case" type="number" min="1" max="5" value={settings.questionsPerCase} onChange={e => handleSettingChange('questionsPerCase', e.target.value)}
+              <input id="questions-per-case" type="number" min="0" max="5" value={settings.questionsPerCase} onChange={e => handleSettingChange('questionsPerCase', e.target.value)}
                  className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
               />
             </div>
              {selectedImages.length > 0 && (
               <div className="space-y-2">
                 <label htmlFor="num-image-questions" className="font-medium text-gray-300">{t("numImageQuestions")}</label>
-                <input id="num-image-questions" type="number" min="0" max="10" value={settings.numImageQuestions} onChange={e => handleSettingChange('numImageQuestions', e.target.value)}
+                <input id="num-image-questions" type="number" min="0" 
+                  max={50 - (parseInt(settings.numMCQs, 10) || 0) - ((parseInt(settings.numCases, 10) || 0) * (parseInt(settings.questionsPerCase, 10) || 0))}
+                  value={settings.numImageQuestions} onChange={e => handleSettingChange('numImageQuestions', e.target.value)}
                   className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
                 />
               </div>

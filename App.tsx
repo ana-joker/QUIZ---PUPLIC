@@ -143,6 +143,15 @@ const translations = {
     "questionsPerCase": "Questions per Case",
     "numImageQuestions": "Number of Image Questions",
     "imageOnlyInfo": "You can generate a quiz from an image alone, without text or a PDF.",
+    "promptTooLongError": "The text is too long. Maximum 10,000 characters allowed.",
+    "pdfTooLargeError": "PDF file is too large. Maximum {size}MB allowed.",
+    "tooManyQuestionsError": "You requested too many questions. Maximum {count} questions allowed.",
+    "noQuestionsRequestedError": "Please request at least one question.",
+    "tooManyImagesError": "You can upload a maximum of {count} images.",
+    "pdfLimitInfo": "Max file size: {size}MB. (Backend will check page count)",
+    "imageLimitInfo": "Max {count} images. (Individual file size limits apply)",
+    "remainingQuestionsInfo": "Remaining questions: {count} / 50",
+    "totalQuestionsLimitInfo": "Total questions (MCQs + Cases * Q/Case + Image Qs) must not exceed {count}."
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -274,6 +283,15 @@ const translations = {
     "questionsPerCase": "أسئلة لكل حالة",
     "numImageQuestions": "عدد أسئلة الصور",
     "imageOnlyInfo": "يمكنك إنشاء اختبار من صورة فقط، بدون الحاجة لنص أو ملف PDF.",
+    "promptTooLongError": "النص طويل جدًا. الحد الأقصى 10,000 حرف مسموح به.",
+    "pdfTooLargeError": "ملف PDF كبير جدًا. الحد الأقصى {size} ميجابايت مسموح به.",
+    "tooManyQuestionsError": "لقد طلبت عددًا كبيرًا جدًا من الأسئلة. الحد الأقصى {count} سؤال مسموح به.",
+    "noQuestionsRequestedError": "يرجى طلب سؤال واحد على الأقل.",
+    "tooManyImagesError": "يمكنك رفع 5 صور كحد أقصى.",
+    "pdfLimitInfo": "الحد الأقصى لحجم الملف: {size} ميجابايت. (الخادم سيتأكد من عدد الصفحات)",
+    "imageLimitInfo": "الحد الأقصى: {count} صور. (تطبق حدود حجم ملفات فردية)",
+    "remainingQuestionsInfo": "الأسئلة المتبقية: {count} / 50",
+    "totalQuestionsLimitInfo": "إجمالي الأسئلة (متعددة الخيارات + الحالات * أسئلة/حالة + أسئلة الصور) يجب ألا يتجاوز {count}."
   }
 };
 type TranslationKey = keyof typeof translations.en;
