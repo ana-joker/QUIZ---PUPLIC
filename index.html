@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Quiz Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      font-size: 16px; /* Default font size */
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f3f3;
+      background-image: radial-gradient(ellipse at top, #e9d5ff, #c4b5fd 80%);
+      background-attachment: fixed;
+    }
+    html.dark body {
+      background-color: #1e1b4b;
+      background-image: radial-gradient(ellipse at top, #3a2e5c, #1e1b4b 80%);
+      background-attachment: fixed;
+    }
+    .font-tajawal {
+      font-family: 'Tajawal', sans-serif;
+    }
+    /* Basic transition for color and background-color */
+    body, .bg-gray-50, .bg-white, .text-gray-800, .dark .bg-gray-900, .dark .bg-gray-950, .dark .text-gray-100 {
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react": "https://esm.sh/react@^19.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.13.0"
+  }
+}
+</script>
+<script>
+  // Set theme before React loads to prevent flash
+  const theme = localStorage.getItem('interactiveQuizAppSettings') ? JSON.parse(localStorage.getItem('interactiveQuizAppSettings')).theme : 'light';
+  if (theme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+</script>
+</head>
+<body class="text-gray-800 dark:text-gray-200">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
