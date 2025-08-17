@@ -3,7 +3,7 @@ export interface Quiz {
   quizData: Question[];
   summary?: string | null;
   // Not a file, but the base64 representation for localStorage
-  selectedImageFile?: string; 
+  selectedImageFiles?: string[]; 
 }
 
 export type QuestionType = 'MCQ' | 'TrueFalse' | 'ShortAnswer' | 'Ordering' | 'Matching';
@@ -17,7 +17,7 @@ export interface Question {
   correctAnswerIndex?: number; // Added for new interface
   explanation: string;
   caseDescription?: string;
-  refersToUploadedImage?: boolean;
+  refersToUploadedImageIndex?: number;
   isFlawed?: boolean;
 }
 

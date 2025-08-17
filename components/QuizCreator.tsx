@@ -34,7 +34,7 @@ type ImageUsage = 'auto' | 'link' | 'about';
 const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated, onBackToChoice }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imageUsage, setImageUsage] = useState<ImageUsage>('auto');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +48,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   };
 
   const handleGenerateQuiz = useCallback(async () => {
-    if (!prompt && !selectedFile && !selectedImage) {
+    if (!prompt && !selectedFile && selectedImages.length === 0) {
       setError(t("inputError"));
       return;
     }
@@ -59,8 +59,8 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     // Set loading messages
     if (creationMode === 'pdf' && selectedFile) {
         setLoadingMessage('Analyzing PDF document...');
-    } else if (selectedImage) {
-        setLoadingMessage('Analyzing image and crafting questions...');
+    } else if (selectedImages.length > 0) {
+        setLoadingMessage('Analyzing images and crafting questions...');
     }
     else {
         setLoadingMessage('Crafting questions...');
@@ -68,18 +68,24 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
     try {
       // The subject is not part of the new UI, so we pass an empty string
-      const generatedQuiz = await generateQuizContent(prompt, '', settings, selectedFile, selectedImage, imageUsage);
+      const generatedQuiz = await generateQuizContent(prompt, '', settings, selectedFile, selectedImages, imageUsage);
       
       setLoadingMessage('Finalizing quiz...');
+      
+      if (selectedImages.length > 0) {
+        const imagePromises = selectedImages.map(imageFile => {
+            return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(imageFile);
+            });
+        });
 
-      if (selectedImage) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              onQuizGenerated({ ...generatedQuiz, selectedImageFile: reader.result as string });
-          };
-          reader.readAsDataURL(selectedImage);
+        const base64Images = await Promise.all(imagePromises);
+        onQuizGenerated({ ...generatedQuiz, selectedImageFiles: base64Images });
       } else {
-          onQuizGenerated(generatedQuiz);
+        onQuizGenerated(generatedQuiz);
       }
 
     } catch (err) {
@@ -88,7 +94,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [prompt, settings, selectedFile, selectedImage, onQuizGenerated, t, creationMode, imageUsage]);
+  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -140,17 +146,40 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         <CardHeader>{t('step2ImageIntegration')}</CardHeader>
         <CardContent>
             <p className="text-sm text-gray-400 mb-4">{t('imageIntegrationDesc')}</p>
-            { !prompt && !selectedFile && selectedImage && 
+            { !prompt && !selectedFile && selectedImages.length > 0 && 
                 <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
             }
             <label htmlFor="image-input" className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400 transition">
               <ImageIcon className="w-8 h-8 text-slate-400" />
-              <span className="text-base font-semibold text-slate-300">{t("addImage")}</span>
+              <span className="text-base font-semibold text-slate-300">{t("addImage")} (up to 5)</span>
             </label>
-            <input id="image-input" type="file" className="hidden" accept="image/*" onChange={(e) => setSelectedImage(e.target.files ? e.target.files[0] : null)} />
-            <FileInputDisplay file={selectedImage} onClear={() => setSelectedImage(null)} icon={<ImageIcon className="w-5 h-5 text-cyan-400" />} />
+            <input id="image-input" type="file" className="hidden" accept="image/*" multiple onChange={(e) => {
+                if (e.target.files) {
+                    const files = Array.from(e.target.files);
+                    const combined = [...selectedImages, ...files];
+                     if (combined.length > 5) {
+                        setError('You can only upload a maximum of 5 images.');
+                        setSelectedImages(combined.slice(0, 5));
+                    } else {
+                        setSelectedImages(combined);
+                    }
+                    e.target.value = '';
+                }
+            }} />
 
-            {selectedImage && (
+            {selectedImages.map((file, index) => (
+                <div key={index} className="mt-4 flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                    <div className="flex items-center gap-3 text-sm text-gray-300">
+                        <ImageIcon className="w-5 h-5 text-cyan-400" />
+                        <span className="truncate max-w-[200px] sm:max-w-xs">{file.name}</span>
+                    </div>
+                    <button onClick={() => setSelectedImages(selectedImages.filter((_, i) => i !== index))} className="p-1 text-gray-400 hover:text-white">
+                        <XIcon className="w-4 h-4" />
+                    </button>
+                </div>
+            ))}
+
+            {selectedImages.length > 0 && (
                 <div className="mt-6">
                     <label className="font-medium text-gray-300 block mb-3">{t('imageUsageTitle')}</label>
                     <div className="space-y-3">
@@ -195,7 +224,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                  className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
               />
             </div>
-             {selectedImage && (
+             {selectedImages.length > 0 && (
               <div className="space-y-2">
                 <label htmlFor="num-image-questions" className="font-medium text-gray-300">{t("numImageQuestions")}</label>
                 <input id="num-image-questions" type="number" min="0" max="10" value={settings.numImageQuestions} onChange={e => handleSettingChange('numImageQuestions', e.target.value)}
@@ -233,7 +262,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       <div className="mt-8">
         <button
           onClick={handleGenerateQuiz}
-          disabled={isLoading || (!prompt && !selectedFile && !selectedImage)}
+          disabled={isLoading || (!prompt && !selectedFile && selectedImages.length === 0)}
           className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
         >
           {isLoading ? (

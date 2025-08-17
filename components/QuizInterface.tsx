@@ -52,7 +52,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
     const htmlContent = useMemo(() => {
         const quizDataString = JSON.stringify(quiz.quizData);
         const quizTitleString = JSON.stringify(quiz.quizTitle);
-        const selectedImageFileString = JSON.stringify(quiz.selectedImageFile || null);
+        const selectedImageFilesString = JSON.stringify(quiz.selectedImageFiles || []);
         const lang = settings.uiLanguage;
         
         const translationsForScript = JSON.stringify({
@@ -145,7 +145,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                 <script>
                     const quizData = ${quizDataString};
                     const quizTitle = ${quizTitleString};
-                    const selectedImageFile = ${selectedImageFileString};
+                    const selectedImageFiles = ${selectedImageFilesString};
                     const translations = ${translationsForScript};
                     const scorableQuizData = quizData.filter(q => !q.isFlawed);
                     const userAnswers = new Array(scorableQuizData.length).fill(null);
@@ -202,8 +202,8 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         document.getElementById('question-counter').textContent = translations.questionOf.replace('{current}', index + 1).replace('{total}', scorableQuizData.length);
                         
                         let imageHTML = '';
-                        if (q.refersToUploadedImage && selectedImageFile) {
-                            imageHTML = \`<img src="\${selectedImageFile}" alt="Quiz Image" class="max-w-lg w-full mx-auto mb-4 rounded-lg shadow-md border-2 border-gray-300 dark:border-gray-600" />\`;
+                        if (typeof q.refersToUploadedImageIndex === 'number' && q.refersToUploadedImageIndex >= 0 && selectedImageFiles[q.refersToUploadedImageIndex]) {
+                            imageHTML = \`<img src="\${selectedImageFiles[q.refersToUploadedImageIndex]}" alt="Quiz Image" class="max-w-lg w-full mx-auto mb-4 rounded-lg shadow-md border-2 border-gray-300 dark:border-gray-600" />\`;
                         }
 
                         let caseHTML = '';
@@ -282,8 +282,8 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                             const optionsHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'correct-answer' : ''} \${!isCorrect && optIndex === userAnswers[index] ? 'incorrect-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
                             const explanationHTML = q.explanation ? \`<div class="explanation-box mt-4"><h4 class="title">\${translations.explanation}</h4><p class="body">\${q.explanation.replace(/\\n/g, '<br/>')}</p></div>\` : '';
                              let imageHTML = '';
-                            if (q.refersToUploadedImage && selectedImageFile) {
-                                imageHTML = \`<img src="\${selectedImageFile}" alt="Quiz Image" class="max-w-md mx-auto mb-4 rounded-lg shadow-md" />\`;
+                            if (typeof q.refersToUploadedImageIndex === 'number' && q.refersToUploadedImageIndex >= 0 && selectedImageFiles[q.refersToUploadedImageIndex]) {
+                                imageHTML = \`<img src="\${selectedImageFiles[q.refersToUploadedImageIndex]}" alt="Quiz Image" class="max-w-md mx-auto mb-4 rounded-lg shadow-md" />\`;
                             }
                             return \`<div class="question-card p-6 rounded-lg review">\${imageHTML}<p class="font-bold text-lg mb-2">\${index + 1}. \${q.question}</p><div class="options space-y-3">\${optionsHTML}</div>\${explanationHTML}</div>\`;
                         }).join('');

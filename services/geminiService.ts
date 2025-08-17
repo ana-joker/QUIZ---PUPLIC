@@ -59,7 +59,7 @@ export const generateQuizContent = async (
   subject: string,
   settings: AppSettings,
   file: File | null,
-  image: File | null,
+  images: File[],
   imageUsage: 'auto' | 'link' | 'about'
 ): Promise<Quiz> => {
   
@@ -95,7 +95,7 @@ export const generateQuizContent = async (
                         },
                         explanation: { type: Type.STRING, description: `Detailed, multi-part explanation IN ${settings.explanationLanguage} following the protocol (simple why, practical example, key takeaway).` },
                         caseDescription: { type: Type.STRING, description: `Optional: A case study, scenario, or context for the question, in ${settings.quizLanguage}. If this question belongs to a case, this field MUST contain the full case text.` },
-                        refersToUploadedImage: { type: Type.BOOLEAN, description: "Optional: Set true if the question is about the uploaded image." },
+                        refersToUploadedImageIndex: { type: Type.INTEGER, description: "Optional: The 0-based index of the uploaded image this question refers to. Omit if not an image-based question." },
                         isFlawed: { type: Type.BOOLEAN, description: "Set to true if the question is flawed and could not be fixed according to internal critique." }
                     },
                     required: ["questionType", "question", "options", "correctAnswer", "explanation"]
@@ -108,7 +108,7 @@ export const generateQuizContent = async (
     const fileContent = file ? await getDocumentText(file) : null;
     
     let imageInstruction = "";
-    if (image) {
+    if (images.length > 0) {
         const numImgQ = parseInt(settings.numImageQuestions, 10);
         if (isNaN(numImgQ) || numImgQ <= 0) {
             imageInstruction = ""; // No image questions requested
@@ -116,21 +116,22 @@ export const generateQuizContent = async (
             let instructionText = "";
             switch (imageUsage) {
                 case 'link':
-                    instructionText = `You MUST generate exactly ${numImgQ} question(s) that require the user to analyze the provided image in conjunction with the provided text content.`;
+                    instructionText = `You MUST generate exactly ${numImgQ} question(s) that require the user to analyze the provided images in conjunction with the provided text content.`;
                     break;
                 case 'about':
-                    instructionText = `You MUST generate exactly ${numImgQ} question(s) that are directly about the visual content of the provided image.`;
+                    instructionText = `You MUST generate exactly ${numImgQ} question(s) that are directly about the visual content of the provided images.`;
                     break;
                 case 'auto':
                 default:
-                    instructionText = `Generate ${numImgQ} question(s) based on the provided image. Use your expert judgment to decide the best pedagogical approach: either by asking questions that require synthesizing information from both the text and image, or by asking questions that focus solely on interpreting the image's content.`;
+                    instructionText = `Generate ${numImgQ} question(s) based on the provided images. Use your expert judgment to decide the best pedagogical approach: either by asking questions that require synthesizing information from both the text and images, or by asking questions that focus solely on interpreting the images' content.`;
                     break;
             }
             imageInstruction = `
 # Image-Based Question Instructions
+- You have been provided with ${images.length} image(s). They are 0-indexed.
 - ${instructionText}
-- For these questions, the 'question' text must clearly refer to the image (e.g., "Based on the provided X-ray...", "What does the arrow in the image point to?").
-- You MUST set 'refersToUploadedImage' to true for all questions that use the image.`;
+- For these questions, the 'question' text must clearly refer to the image (e.g., "Based on the first X-ray...", "In the image of the cell (image 1)...").
+- You MUST set 'refersToUploadedImageIndex' to the 0-based index of the image being used for all questions that use an image.`;
         }
     }
 
@@ -138,16 +139,16 @@ export const generateQuizContent = async (
         ? `\n\nUser's specific text content: "${prompt}"` 
         : (fileContent 
             ? `\n\nGenerate the quiz from this document:\n---BEGIN DOCUMENT---\n${fileContent}\n---END DOCUMENT---` 
-            : (image ? '\n\nGenerate the quiz *exclusively* from the provided image.' : ''));
+            : (images.length > 0 ? '\n\nGenerate the quiz *exclusively* from the provided image(s).' : ''));
 
     const generationPrompt = `
-// AI Execution Protocol: Version 2.8 (Interface 6.0 - Advanced Image Integration & Logic)
+// AI Execution Protocol: Version 2.9 (Interface 6.0 - Advanced Multi-Image Integration)
 
 # Primary Directive
 Your primary function is to act as an expert medical examinations author. You will generate high-quality Multiple-Choice Questions (MCQs) and detailed Case Scenarios based *exclusively* on the provided scientific text and/or images. All information must be derived from the provided content. The final output must be a single JSON object adhering to the schema.
 
 # Input
-- Scientific text and/or Images: The sole source of information.
+- Scientific text and/or up to 5 Images: The sole source of information.
 - Configuration: Detailed instructions on the number and type of questions, and how to use images.
 
 # Protocol 1: Content Generation
@@ -165,7 +166,8 @@ Generate MCQs and Case Scenarios based on the user's configuration.
     - **Options:** Exactly 4 options. One is the single best answer based on the text. The other three (distractors) must be plausible but incorrect according to the text.
 
 3.  **Content Evaluation (Critical):**
-    - **Image & Text Cohesion:** If both text and an image are provided, first critically assess their relationship. If they are unrelated (e.g., text about pharmacology, image of a skin rash), DO NOT force a connection. Generate questions about each source independently based on the user's requested question counts.
+    - **Image & Text Cohesion:** If both text and image(s) are provided, first critically assess their relationship. If they are unrelated (e.g., text about pharmacology, one image of a skin rash, another of an ECG), DO NOT force a connection. Generate questions about each source independently based on the user's requested question counts.
+    - **Image Referencing:** When a question is about one of the provided images, you MUST set the 'refersToUploadedImageIndex' property to the correct 0-based index of that image. For example, if a question refers to the first uploaded image, set 'refersToUploadedImageIndex' to 0.
     - **No External Knowledge:** Generate questions and explanations *only* from the provided material. Do not introduce outside information.
 
 4.  **Language & Quality:**
@@ -202,8 +204,10 @@ ${imageInstruction}
 The output MUST be a single JSON object that strictly adheres to the provided schema. Do not include any extra text, formatting, or markdown backticks.`;
 
   const promptParts: Part[] = [{ text: generationPrompt }];
-  if (image) {
-    promptParts.push(await fileToGenerativePart(image));
+  if (images.length > 0) {
+    for (const imageFile of images) {
+        promptParts.push(await fileToGenerativePart(imageFile));
+    }
   }
 
   try {

@@ -77,9 +77,9 @@ const QuizPage: React.FC<QuizPageProps> = ({ quizState, onAnswerSubmit, onNextQu
                 </div>
             )}
             
-            {currentQuestion.refersToUploadedImage && quizState.selectedImageFile && (
+            {typeof currentQuestion.refersToUploadedImageIndex === 'number' && quizState.selectedImageFiles && quizState.selectedImageFiles[currentQuestion.refersToUploadedImageIndex] && (
                 <div className="mb-4">
-                    <img src={quizState.selectedImageFile} alt="Quiz context" className="rounded-lg max-w-full h-auto mx-auto shadow-md" />
+                    <img src={quizState.selectedImageFiles[currentQuestion.refersToUploadedImageIndex]} alt="Quiz context" className="rounded-lg max-w-full h-auto mx-auto shadow-md" />
                 </div>
             )}
 
