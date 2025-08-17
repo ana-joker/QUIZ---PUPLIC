@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useTranslation } from '../App';
 
@@ -9,7 +10,7 @@ const ChoiceScreen: React.FC<ChoiceScreenProps> = ({ onSelectMode }) => {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh]">
+    <div className="flex flex-col items-center justify-center">
       <div className="bg-slate-800/40 backdrop-blur-md border border-slate-600/50 rounded-2xl shadow-lg p-8 sm:p-12 text-center w-full max-w-2xl">
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 font-tajawal">
           {t('howToCreate')}

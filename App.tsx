@@ -436,6 +436,14 @@ const AppContent: React.FC = () => {
                 if (!creationMode) {
                     return (
                         <>
+                            <header className="text-center my-8">
+                                <h1 
+                                    className="text-7xl md:text-8xl font-black tracking-tighter font-tajawal bg-gradient-to-br from-fuchsia-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent"
+                                    style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.1)' }}
+                                >
+                                    QUIZ TIME
+                                </h1>
+                            </header>
                             <ChoiceScreen onSelectMode={setCreationMode} />
                             <footer className="mt-8 flex justify-center gap-4">
                                 <button onClick={handleShowHistory} className="flex items-center gap-2 py-2 px-4 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition">
