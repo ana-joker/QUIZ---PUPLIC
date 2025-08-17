@@ -1,7 +1,7 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Quiz } from '../types';
-import { generateQuizContent } from '../services/geminiService';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
 import { useSettings, useTranslation } from '../App';
 
@@ -105,48 +105,69 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    // Set loading messages
-    if (creationMode === 'pdf' && selectedFile) {
-        setLoadingMessage('Analyzing PDF document...');
-    } else if (selectedImages.length > 0) {
-        setLoadingMessage('Analyzing images and crafting questions...');
-    }
-    else {
-        setLoadingMessage('Crafting questions...');
-    }
-
     try {
-      // The subject is not part of the new UI, so we pass an empty string
-      const generatedQuiz = await generateQuizContent(prompt, '', settings, selectedFile, selectedImages, imageUsage);
-      
-      setLoadingMessage('Finalizing quiz...');
-      
-      if (selectedImages.length > 0) {
-        const imagePromises = selectedImages.map(imageFile => {
-            return new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(imageFile);
-            });
+        setIsLoading(true);
+        setError(null);
+
+        if (creationMode === 'pdf' && selectedFile) {
+            setLoadingMessage(t('processing'));
+        } else if (selectedImages.length > 0) {
+            setLoadingMessage(t('processing'));
+        }
+        else {
+            setLoadingMessage(t('processing'));
+        }
+
+        const formData = new FormData();
+        formData.append('prompt', prompt);
+        formData.append('settings', JSON.stringify(settings));
+
+        if (selectedFile) {
+            formData.append('file', selectedFile);
+        }
+        selectedImages.forEach((image) => {
+            formData.append(`images`, image);
         });
 
-        const base64Images = await Promise.all(imagePromises);
-        onQuizGenerated({ ...generatedQuiz, selectedImageFiles: base64Images });
-      } else {
-        onQuizGenerated(generatedQuiz);
-      }
+        const API_BASE_URL = (import.meta as any).env.VITE_BACKEND_API_URL || 'http://localhost:3000';
 
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+        const response = await fetch(`${API_BASE_URL}/generate-quiz`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || t("unknownError"));
+        }
+
+        const generatedQuiz = await response.json();
+
+        setLoadingMessage(t('finalizingQuiz'));
+
+        let base64Images: string[] = [];
+        if (selectedImages.length > 0) {
+            const imagePromises = selectedImages.map(imageFile => {
+                return new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(imageFile);
+                });
+            });
+            base64Images = await Promise.all(imagePromises);
+        }
+
+        onQuizGenerated({ ...generatedQuiz, selectedImageFiles: base64Images });
+
+    } catch (err: any) {
+        console.error("Quiz generation error:", err);
+        setError(`${t("errorPrefix")} ${err.message}`);
     } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
+        setIsLoading(false);
+        setLoadingMessage('');
     }
-  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage]);
+  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -180,6 +201,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                     placeholder={t("textPlaceholder")}
                     className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition min-h-[150px] text-gray-200 placeholder-gray-500"
                     rows={6}
+                    maxLength={25000}
                 />
             ) : (
                 <>
