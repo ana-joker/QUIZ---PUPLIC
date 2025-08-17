@@ -5,14 +5,14 @@ import { useSettings, useTranslation } from '../App';
 import { AppSettings } from '../types';
 import { XIcon } from './ui/Icons';
 
-interface SettingsSidebarProps {
+interface SettingsPopoverProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ isOpen, onClose }) => {
+const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) => {
   const { settings, setSettings } = useSettings();
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'quiz' | 'general'>('general');
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
 
@@ -204,40 +204,41 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ isOpen, onClose }) =>
   return (
     <>
       <div onClick={handleSaveAndClose} aria-hidden="true" className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
-      <div role="dialog" aria-modal="true" aria-labelledby="settings-sidebar-title"
-          className={`fixed top-0 ${lang === 'ar' ? 'left-0' : 'right-0'} h-full w-full max-w-md bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')}`}>
-          
-          <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-              <h2 id="settings-sidebar-title" className="text-xl font-semibold text-gray-800 dark:text-gray-200">{t("quizSettings")}</h2>
-              <button onClick={handleSaveAndClose} aria-label="Close settings" className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                  <XIcon className="w-5 h-5" />
-              </button>
-          </header>
+      
+      <div role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? '' : 'pointer-events-none'}`}>
+          <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md h-full sm:h-auto sm:max-h-[90vh] flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
+              <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                  <h2 id="settings-modal-title" className="text-xl font-semibold text-gray-800 dark:text-gray-200">{t("quizSettings")}</h2>
+                  <button onClick={handleSaveAndClose} aria-label="Close settings" className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <XIcon className="w-5 h-5" />
+                  </button>
+              </header>
 
-          <main className="flex-grow overflow-y-auto">
-              <div className="border-b border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-2">
-                       <button onClick={() => setActiveTab('general')} className={`py-3 text-sm font-semibold ${activeTab === 'general' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {t("settingsGeneral")}
-                      </button>
-                      <button onClick={() => setActiveTab('quiz')} className={`py-3 text-sm font-semibold ${activeTab === 'quiz' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {t("settingsQuiz")}
-                      </button>
+              <main className="flex-grow overflow-y-auto">
+                  <div className="border-b border-gray-200 dark:border-gray-700">
+                      <div className="grid grid-cols-2">
+                           <button onClick={() => setActiveTab('general')} className={`py-3 text-sm font-semibold ${activeTab === 'general' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {t("settingsGeneral")}
+                          </button>
+                          <button onClick={() => setActiveTab('quiz')} className={`py-3 text-sm font-semibold ${activeTab === 'quiz' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {t("settingsQuiz")}
+                          </button>
+                      </div>
                   </div>
-              </div>
-              <div className="p-6">
-                  {activeTab === 'general' ? <GeneralSettings /> : <QuizSettings />}
-              </div>
-          </main>
-          
-          <footer className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
-               <button onClick={handleSaveAndClose} className="w-full bg-teal-600 text-white font-bold py-2.5 rounded-lg hover:bg-teal-700 transition">
-                  {t("settingsDone")}
-              </button>
-          </footer>
+                  <div className="p-6">
+                      {activeTab === 'general' ? <GeneralSettings /> : <QuizSettings />}
+                  </div>
+              </main>
+              
+              <footer className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+                   <button onClick={handleSaveAndClose} className="w-full bg-teal-600 text-white font-bold py-2.5 rounded-lg hover:bg-teal-700 transition">
+                      {t("settingsDone")}
+                  </button>
+              </footer>
+          </div>
       </div>
     </>
   );
 };
 
-export default SettingsSidebar;
+export default SettingsPopover;

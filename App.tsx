@@ -445,23 +445,23 @@ const AppContent: React.FC = () => {
                                 </h1>
                             </header>
                             <ChoiceScreen onSelectMode={setCreationMode} />
-                            <footer className="mt-8 flex justify-center gap-4">
-                                <button onClick={handleShowHistory} className="flex items-center gap-2 py-2 px-4 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition">
+                            <footer className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 px-4">
+                                <button onClick={handleShowHistory} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition text-base font-medium whitespace-nowrap">
                                     <HistoryIcon className="w-5 h-5" />
-                                    <span className="font-medium">{t("quizHistory")}</span>
+                                    <span>{t("quizHistory")}</span>
                                 </button>
-                                <button onClick={handleShowRecall} className="flex items-center gap-2 py-2 px-4 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition relative">
+                                <button onClick={handleShowRecall} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition relative text-base font-medium whitespace-nowrap">
                                     <BrainCircuitIcon className="w-5 h-5" />
-                                    <span className="font-medium">{t("recallHub")}</span>
+                                    <span>{t("recallHub")}</span>
                                     {dueRecallItems.length > 0 && (
                                         <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
                                             {dueRecallItems.length}
                                         </span>
                                     )}
                                 </button>
-                                <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-2 py-2 px-4 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition" aria-label={t("quizSettings")}>
+                                <button onClick={() => setIsSettingsOpen(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition text-base font-medium whitespace-nowrap" aria-label={t("quizSettings")}>
                                     <SettingsIcon className="w-5 h-5" />
-                                     <span className="font-medium">{t("quizSettings")}</span>
+                                     <span>{t("quizSettings")}</span>
                                 </button>
                             </footer>
                             <SettingsPopover isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

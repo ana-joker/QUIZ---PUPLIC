@@ -19,7 +19,7 @@ const Card: React.FC<{ children: React.ReactNode, className?: string }> = ({ chi
 
 const CardHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="border-b border-cyan-400/20 p-4">
-    <h3 className="font-bold text-xl text-cyan-300 font-tajawal">{children}</h3>
+    <h3 className="font-bold text-xl text-cyan-300 font-tajawal text-center md:text-start">{children}</h3>
   </div>
 );
 
