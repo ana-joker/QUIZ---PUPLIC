@@ -1,10 +1,15 @@
 export interface Quiz {
-  id?: number; // Unique ID for IndexedDB
+  id?: string; // Unique ID for IndexedDB
   quizTitle: string;
   quizData: Question[];
   summary?: string | null;
   // Not a file, but the base64 representation for localStorage
   selectedImageFiles?: string[]; 
+  savedAt?: string;
+  score?: number;
+  total?: number;
+  percentage?: string;
+  timeTaken?: string;
 }
 
 export type QuestionType = 'MCQ' | 'TrueFalse' | 'ShortAnswer' | 'Ordering' | 'Matching';
@@ -46,7 +51,7 @@ export interface QuizHistoryEntry {
 }
 
 export interface RecallItem {
-  id: number;
+  id: string;
   questionData: Question;
   nextReviewDate: number;
   interval: number;

@@ -18,7 +18,7 @@ const RecallPage: React.FC<RecallPageProps> = ({ onBack, dueRecallItems: initial
   
   const currentItem = dueItems.length > 0 ? dueItems[currentIndex] : null;
 
-  const updateRecallItem = (itemId: number, performance: 'forgot' | 'good' | 'easy') => {
+  const updateRecallItem = (itemId: string, performance: 'forgot' | 'good' | 'easy') => {
     const deck: RecallItem[] = JSON.parse(localStorage.getItem(RECALL_STORAGE_KEY) || '[]');
     const itemIndex = deck.findIndex(item => item.id === itemId);
     if (itemIndex === -1) return;

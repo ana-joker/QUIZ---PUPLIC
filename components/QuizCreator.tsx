@@ -70,8 +70,8 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     }
 
     // 2. Content limits check
-    if (creationMode === 'text' && prompt.length > 25000) {
-        setError(t("promptTooLongError", { count: '25,000' }));
+    if (creationMode === 'text' && prompt.length > 40000) {
+        setError(t("promptTooLongError", { count: '40,000' }));
         return;
     }
 
@@ -209,7 +209,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                     placeholder={t("textPlaceholder")}
                     className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition min-h-[150px] text-gray-200 placeholder-gray-500"
                     rows={6}
-                    maxLength={25000}
+                    maxLength={40000}
                 />
             ) : (
                 <>

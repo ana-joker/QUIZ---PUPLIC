@@ -24,7 +24,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ quizState, onBack }) => {
     }
     
     const newItem: RecallItem = {
-      id: Date.now(),
+      id: Date.now().toString(),
       questionData: questionData,
       nextReviewDate: Date.now(),
       interval: 1,

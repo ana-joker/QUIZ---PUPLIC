@@ -6,7 +6,7 @@ import { getQuizzesFromIndexedDB, deleteQuizFromIndexedDB } from '../services/in
 
 // Define a type for the saved quiz to be displayed in HistoryPage
 interface SavedQuizDisplay {
-  id: number; // ID from IndexedDB
+  id: string; // ID from IndexedDB
   title: string;
   savedAt: string; // ISO string date of saving
   score?: number; // Might not be available if quiz not completed
@@ -31,12 +31,12 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onBack, onRetake }) => {
     setLoading(true);
     setError(null);
     try {
-      const quizzesFromDB: any[] = await getQuizzesFromIndexedDB();
+      const quizzesFromDB: Quiz[] = await getQuizzesFromIndexedDB();
       // Transform data from IndexedDB to the required display format
       const formattedQuizzes: SavedQuizDisplay[] = quizzesFromDB.map(dbQuiz => ({
-        id: dbQuiz.id,
+        id: dbQuiz.id!, // id will exist for saved quizzes
         title: dbQuiz.quizTitle || t("untitledQuiz"),
-        savedAt: dbQuiz.savedAt,
+        savedAt: dbQuiz.savedAt!,
         score: dbQuiz.score,
         total: dbQuiz.total,
         percentage: dbQuiz.percentage,
@@ -56,7 +56,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onBack, onRetake }) => {
     loadQuizzes();
   }, [loadQuizzes]);
 
-  const handleDeleteQuiz = async (id: number) => {
+  const handleDeleteQuiz = async (id: string) => {
     if (window.confirm(t("confirmDeleteQuiz") || "Are you sure you want to delete this quiz?")) {
       try {
         await deleteQuizFromIndexedDB(id);
