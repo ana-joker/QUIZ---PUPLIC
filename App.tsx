@@ -6,8 +6,8 @@ import HistoryPage from './components/HistoryPage';
 import RecallPage from './components/RecallPage';
 import ChoiceScreen from './components/ChoiceScreen';
 import SettingsPopover from './components/SettingsPopover';
-import { Quiz, QuizHistoryEntry, RecallItem, AppSettings } from './types';
-import { HISTORY_STORAGE_KEY, RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
+import { Quiz, RecallItem, AppSettings } from './types';
+import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
 import { SettingsIcon, HistoryIcon, BrainCircuitIcon } from './components/ui/Icons';
 
 
@@ -153,7 +153,14 @@ const translations = {
     "pdfLimitInfo": "Max file size: {size}MB. (Backend will check page count)",
     "imageLimitInfo": "Max {count} images. (Individual file size limits apply)",
     "remainingQuestionsInfo": "Remaining questions: {count} / 50",
-    "totalQuestionsLimitInfo": "Total questions (MCQs + Cases * Q/Case + Image Qs) must not exceed {count}."
+    "totalQuestionsLimitInfo": "Total questions (MCQs + Cases * Q/Case + Image Qs) must not exceed {count}.",
+    "untitledQuiz": "Untitled Quiz",
+    "errorLoadingHistory": "Failed to load quiz history.",
+    "confirmDeleteQuiz": "Are you sure you want to delete this quiz?",
+    "errorDeletingQuiz": "Failed to delete quiz.",
+    "loadingHistory": "Loading quiz history...",
+    "delete": "Delete",
+    "saveAsHtml": "Save as HTML"
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -295,7 +302,14 @@ const translations = {
     "pdfLimitInfo": "الحد الأقصى لحجم الملف: {size} ميجابايت. (الخادم سيتأكد من عدد الصفحات)",
     "imageLimitInfo": "الحد الأقصى: {count} صور. (تطبق حدود حجم ملفات فردية)",
     "remainingQuestionsInfo": "الأسئلة المتبقية: {count} / 50",
-    "totalQuestionsLimitInfo": "إجمالي الأسئلة (متعددة الخيارات + الحالات * أسئلة/حالة + أسئلة الصور) يجب ألا يتجاوز {count}."
+    "totalQuestionsLimitInfo": "إجمالي الأسئلة (متعددة الخيارات + الحالات * أسئلة/حالة + أسئلة الصور) يجب ألا يتجاوز {count}.",
+    "untitledQuiz": "اختبار بدون عنوان",
+    "errorLoadingHistory": "فشل تحميل سجل الاختبارات.",
+    "confirmDeleteQuiz": "هل أنت متأكد من حذف هذا الاختبار؟",
+    "errorDeletingQuiz": "فشل حذف الاختبار.",
+    "loadingHistory": "جاري تحميل سجل الاختبارات...",
+    "delete": "حذف",
+    "saveAsHtml": "حفظ كملف HTML"
   }
 };
 type TranslationKey = keyof typeof translations.en;
@@ -394,16 +408,9 @@ const AppContent: React.FC = () => {
     const [creationMode, setCreationMode] = useState<CreationMode | null>(null);
     const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
     const [quizToResume, setQuizToResume] = useState<Quiz | null>(null);
-    const [history, setHistory] = useState<QuizHistoryEntry[]>([]);
     const [dueRecallItems, setDueRecallItems] = useState<RecallItem[]>([]);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { t } = useTranslation();
-
-
-    const loadHistory = useCallback(() => {
-        const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
-        setHistory(savedHistory ? JSON.parse(savedHistory) : []);
-    }, []);
 
     const updateRecallCount = useCallback(() => {
         const savedRecall = localStorage.getItem(RECALL_STORAGE_KEY);
@@ -413,9 +420,8 @@ const AppContent: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        loadHistory();
         updateRecallCount();
-    }, [loadHistory, updateRecallCount]);
+    }, [updateRecallCount]);
 
     const handleQuizGenerated = (quiz: Quiz) => {
         setActiveQuiz(quiz);
@@ -437,7 +443,6 @@ const AppContent: React.FC = () => {
     };
 
     const handleShowHistory = () => {
-        loadHistory();
         setCurrentView('history');
     };
 
@@ -450,7 +455,7 @@ const AppContent: React.FC = () => {
             case 'quiz':
                 return <QuizFlow initialQuiz={activeQuiz} quizToResume={quizToResume} onExit={handleBackToCreator} />;
             case 'history':
-                return <HistoryPage history={history} onBack={handleBackToCreator} onRetake={handleStartQuizFromHistory} />;
+                return <HistoryPage onBack={handleBackToCreator} onRetake={handleStartQuizFromHistory} />;
             case 'recall':
                 return <RecallPage onBack={handleBackToCreator} dueRecallItems={dueRecallItems} />;
             case 'creator':

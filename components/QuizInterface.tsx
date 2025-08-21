@@ -1,9 +1,10 @@
 
-import React, { useMemo, useEffect } from 'react';
+
+import React, { useMemo, useEffect, useCallback } from 'react';
 import { Quiz } from '../types';
 import { useSettings, useTranslation } from '../App';
-import { HISTORY_STORAGE_KEY } from '../constants';
-import { QuizHistoryEntry } from '../types';
+import { saveQuizToIndexedDB, getQuizByIdFromIndexedDB } from '../services/indexedDbService';
+import { generateQuizHtml } from '../utils/quizHtmlGenerator';
 
 interface QuizInterfaceProps {
     quiz: Quiz;
@@ -14,30 +15,49 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
     const { settings } = useSettings();
     const { t } = useTranslation();
 
-    // Effect to listen for 'exit' messages from the iframe
+    const handleDownloadHtml = useCallback(() => {
+        if (!quiz) return;
+        const quizTitle = quiz.quizTitle || t("untitledQuiz");
+        const htmlContent = generateQuizHtml(quiz, quizTitle);
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${quizTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, [quiz, t]);
+
+    // Effect to listen for messages from the iframe
     useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
+        const handleMessage = async (event: MessageEvent) => {
             if (event.data && typeof event.data === 'object' && event.data.type === 'quiz-finished') {
+                if (!quiz.id) return;
+
                 const { score, total, percentage, timeTaken } = event.data.payload;
-
-                const newHistoryEntry: QuizHistoryEntry = {
-                    title: quiz.quizTitle,
-                    score,
-                    total,
-                    percentage: `${percentage.toFixed(1)}%`,
-                    date: new Date().toLocaleString(),
-                    mode: 'quiz', 
-                    quizData: quiz,
-                    timeTaken: `${Math.floor(timeTaken / 60).toString().padStart(2, '0')}:${(timeTaken % 60).toString().padStart(2, '0')}`,
-                };
-
-                const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
-                const history: QuizHistoryEntry[] = savedHistory ? JSON.parse(savedHistory) : [];
-                history.unshift(newHistoryEntry);
-                localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 50))); // limit history size
-
+                
+                try {
+                    const existingQuiz = await getQuizByIdFromIndexedDB(quiz.id);
+                    if (existingQuiz) {
+                        const updatedQuiz = {
+                            ...existingQuiz,
+                            score,
+                            total,
+                            percentage: `${percentage.toFixed(1)}%`,
+                            timeTaken: `${Math.floor(timeTaken / 60).toString().padStart(2, '0')}:${(timeTaken % 60).toString().padStart(2, '0')}`,
+                        };
+                        await saveQuizToIndexedDB(updatedQuiz);
+                    }
+                } catch (error) {
+                    console.error("Failed to update quiz in IndexedDB with results:", error);
+                }
+                
                 onExit();
 
+            } else if (event.data && event.data.type === 'download-quiz') {
+                handleDownloadHtml();
             } else if (event.data === 'quiz-exit') {
                 onExit();
             }
@@ -46,7 +66,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
         return () => {
             window.removeEventListener('message', handleMessage);
         };
-    }, [onExit, quiz]);
+    }, [onExit, quiz, handleDownloadHtml]);
 
     // useMemo to generate the HTML content only when the quiz data or theme changes.
     const htmlContent = useMemo(() => {
@@ -72,7 +92,8 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
             exitToMainMenu: t('exitToMainMenu'),
             backToResults: t('backToResults'),
             reviewAnswersTitle: t('reviewAnswersTitle'),
-            transformContentToQuiz: t('transformContentToQuiz')
+            transformContentToQuiz: t('transformContentToQuiz'),
+            saveAsHtml: t('saveAsHtml'),
         });
 
         return `
@@ -127,10 +148,11 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     .option-label.incorrect-answer-feedback { background-color: var(--ms-incorrect-bg) !important; border-color: var(--ms-incorrect-red) !important; }
                     .review .option-label.correct-answer, .basmaja-correct-answer { background-color: var(--ms-correct-bg) !important; border-color: var(--ms-correct-green) !important; }
                     .review .option-label.incorrect-answer { background-color: var(--ms-incorrect-bg); border-color: var(--ms-incorrect-red); }
-                    .btn-primary, .btn-secondary { color: white; transition: all .3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+                    .btn-primary, .btn-secondary, .btn-tertiary { color: white; transition: all .3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
                     .btn-primary { background-color: var(--ms-blue); } .btn-primary:hover:not(:disabled) { background-color: var(--ms-dark-blue); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
                     .btn-secondary { background-color: #6c757d; } .btn-secondary:hover:not(:disabled) { background-color: #5a6268; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-                    .btn-primary:disabled, .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+                    .btn-tertiary { background-color: #107C10; } .btn-tertiary:hover:not(:disabled) { background-color: #0b530b; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+                    .btn-primary:disabled, .btn-secondary:disabled, .btn-tertiary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
                     .flawed-tag { background-color: var(--ms-incorrect-bg); border: 1px solid var(--ms-incorrect-red); color: var(--ms-incorrect-red); padding: 0.5rem 1rem; border-radius: 0.375rem; margin-bottom: 1rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem; }
                 </style>
             </head>
@@ -265,10 +287,11 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         const total = scorableQuizData.length;
                         const percentage = total > 0 ? (score / total) * 100 : 0;
                         
-                        pages.results.innerHTML = \`<div class="text-center mb-8"><h2 class="text-3xl font-bold mb-2 font-tajawal">\${translations.quizComplete}</h2></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 text-center mb-8"><p class="text-xl mb-2 text-gray-700 dark:text-gray-300 font-tajawal">\${translations.yourScore}</p><p id="score-text" class="text-5xl font-bold text-teal-500">\${score} / \${total}</p><p id="score-percentage" class="text-lg font-medium text-gray-500 dark:text-gray-400 mt-1">(\${percentage.toFixed(1)}%)</p></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><button id="review-answers-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.reviewAnswers}</button><button id="retake-quiz-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.retakeQuiz}</button><button id="exit-btn" class="sm:col-span-2 btn-secondary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.exitToMainMenu}</button></div>\`;
+                        pages.results.innerHTML = \`<div class="text-center mb-8"><h2 class="text-3xl font-bold mb-2 font-tajawal">\${translations.quizComplete}</h2></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 text-center mb-8"><p class="text-xl mb-2 text-gray-700 dark:text-gray-300 font-tajawal">\${translations.yourScore}</p><p id="score-text" class="text-5xl font-bold text-teal-500">\${score} / \${total}</p><p id="score-percentage" class="text-lg font-medium text-gray-500 dark:text-gray-400 mt-1">(\${percentage.toFixed(1)}%)</p></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-4"><button id="review-answers-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.reviewAnswers}</button><button id="download-html-btn" class="btn-tertiary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.saveAsHtml}</button><button id="retake-quiz-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.retakeQuiz}</button><button id="exit-btn" class="sm:col-span-3 btn-secondary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.exitToMainMenu}</button></div>\`;
                         
                         document.getElementById('review-answers-btn').addEventListener('click', () => { loadReviewContent(); showPage('review'); });
                         document.getElementById('retake-quiz-btn').addEventListener('click', startQuiz);
+                        document.getElementById('download-html-btn').addEventListener('click', () => { window.parent.postMessage({ type: 'download-quiz' }, '*'); });
                         document.getElementById('exit-btn').addEventListener('click', () => {
                              window.parent.postMessage({ type: 'quiz-finished', payload: { score, total, percentage, timeTaken } }, '*');
                         });

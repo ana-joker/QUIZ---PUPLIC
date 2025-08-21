@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Quiz } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
 import { useSettings, useTranslation } from '../App';
+import { saveQuizToIndexedDB } from '../services/indexedDbService';
 
 interface QuizCreatorProps {
   creationMode: 'text' | 'pdf';
@@ -141,7 +142,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             throw new Error(errorData.error || t("unknownError"));
         }
 
-        const generatedQuiz = await response.json();
+        const generatedQuiz: Quiz = await response.json();
 
         setLoadingMessage(t('finalizingQuiz'));
 
@@ -157,8 +158,15 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             });
             base64Images = await Promise.all(imagePromises);
         }
+        
+        const quizWithImages = { ...generatedQuiz, selectedImageFiles: base64Images };
 
-        onQuizGenerated({ ...generatedQuiz, selectedImageFiles: base64Images });
+        // Save the newly generated quiz to IndexedDB and get its ID
+        const savedId = await saveQuizToIndexedDB(quizWithImages);
+        
+        const quizWithId = { ...quizWithImages, id: savedId };
+
+        onQuizGenerated(quizWithId);
 
     } catch (err: any) {
         console.error("Quiz generation error:", err);

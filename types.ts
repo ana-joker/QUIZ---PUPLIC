@@ -1,4 +1,5 @@
 export interface Quiz {
+  id?: number; // Unique ID for IndexedDB
   quizTitle: string;
   quizData: Question[];
   summary?: string | null;
