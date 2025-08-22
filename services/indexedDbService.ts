@@ -3,7 +3,7 @@ import { openDB, IDBPDatabase } from 'idb';
 import { Quiz } from '../types';
 
 const DB_NAME = 'QuizAppDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented version to trigger upgrade
 const STORE_NAME = 'quizzes'; // to store quizzes
 
 let db: IDBPDatabase;
@@ -11,10 +11,16 @@ let db: IDBPDatabase;
 async function initDB() {
   if (!db) {
     db = await openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          // Use without keyPath for explicit key provision
-          db.createObjectStore(STORE_NAME); 
+      upgrade(db, oldVersion) {
+        // This upgrade path handles the transition from a potentially incorrect
+        // schema (with keyPath) to the correct one (without keyPath).
+        if (oldVersion < 2) {
+          if (db.objectStoreNames.contains(STORE_NAME)) {
+            db.deleteObjectStore(STORE_NAME);
+          }
+          // Create the object store without a keyPath, allowing explicit key provision.
+          // This is the "out-of-line keys" approach, which resolves the error.
+          db.createObjectStore(STORE_NAME);
         }
       },
     });
@@ -42,7 +48,7 @@ export async function saveQuizToIndexedDB(quizData: Quiz): Promise<string> {
     savedAt: quizData.savedAt || new Date().toISOString()
   };
 
-  // Pass the object and the key separately to store.put
+  // Pass the object and the key separately to store.put, as required for out-of-line keys.
   await store.put(quizToSave, idToUse);
   await transaction.done;
   console.log('Quiz saved to IndexedDB:', quizToSave);
