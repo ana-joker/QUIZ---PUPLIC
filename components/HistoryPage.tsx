@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Quiz } from '../types'; 
 import { HomeIcon, RefreshCwIcon, Trash2Icon } from './ui/Icons';
 import { useTranslation } from '../App';
@@ -26,6 +26,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onBack, onRetake }) => {
   const [savedQuizzes, setSavedQuizzes] = useState<SavedQuizDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const historyListRef = useRef<HTMLDivElement>(null);
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true);
@@ -55,6 +56,39 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onBack, onRetake }) => {
   useEffect(() => {
     loadQuizzes();
   }, [loadQuizzes]);
+
+  // Copy protection effect
+  useEffect(() => {
+    const contentElement = historyListRef.current;
+    if (!contentElement) return;
+
+    const watermark = '\n\n---\nتم إنشاء هذا المحتوى بواسطة تطبيق مولد الاختبارات الذكي - AHMED AL3NANY';
+
+    const handleCut = (e: ClipboardEvent) => {
+        e.preventDefault();
+    };
+
+    const handleCopy = (e: ClipboardEvent) => {
+        const selection = window.getSelection();
+        if (!selection || !e.clipboardData) return;
+
+        const selectedText = selection.toString();
+        const watermarkedText = selectedText + watermark;
+
+        e.clipboardData.setData('text/plain', watermarkedText);
+        e.preventDefault();
+    };
+
+    contentElement.addEventListener('cut', handleCut);
+    contentElement.addEventListener('copy', handleCopy);
+
+    return () => {
+      if (contentElement) {
+        contentElement.removeEventListener('cut', handleCut);
+        contentElement.removeEventListener('copy', handleCopy);
+      }
+    };
+  }, [savedQuizzes]); // Reruns when data is loaded
 
   const handleDeleteQuiz = async (id: string) => {
     if (window.confirm(t("confirmDeleteQuiz") || "Are you sure you want to delete this quiz?")) {
@@ -100,7 +134,16 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onBack, onRetake }) => {
             <p className="text-gray-500 dark:text-gray-400">{t("noHistory")}</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div
+          ref={historyListRef}
+          className="space-y-4"
+          style={{
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none'
+          }}
+        >
             {savedQuizzes.map((entry) => (
                 <div key={entry.id} className="bg-white dark:bg-gray-900 p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>

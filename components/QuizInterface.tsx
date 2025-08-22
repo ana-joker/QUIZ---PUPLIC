@@ -154,15 +154,21 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     .btn-tertiary { background-color: #107C10; } .btn-tertiary:hover:not(:disabled) { background-color: #0b530b; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
                     .btn-primary:disabled, .btn-secondary:disabled, .btn-tertiary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
                     .flawed-tag { background-color: var(--ms-incorrect-bg); border: 1px solid var(--ms-incorrect-red); color: var(--ms-incorrect-red); padding: 0.5rem 1rem; border-radius: 0.375rem; margin-bottom: 1rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem; }
+                    .protected-content {
+                        user-select: none;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                    }
                 </style>
             </head>
             <body class="${settings.theme}">
                 <div class="max-w-4xl mx-auto p-4 md:p-8">
                     <div id="landing-page" class="page active text-center container-glass p-8 rounded-lg"></div>
-                    <div id="quiz-page" class="page container-glass p-6 rounded-lg"></div>
+                    <div id="quiz-page" class="page container-glass p-6 rounded-lg protected-content"></div>
                     <div id="results-page" class="page container-glass p-6 md:p-8 rounded-lg"></div>
-                    <div id="review-page" class="page container-glass p-6 rounded-lg"></div>
-                    <div id="basmaja-page" class="page container-glass p-6 rounded-lg"></div>
+                    <div id="review-page" class="page container-glass p-6 rounded-lg protected-content"></div>
+                    <div id="basmaja-page" class="page container-glass p-6 rounded-lg protected-content"></div>
                 </div>
                 <script>
                     const quizData = ${quizDataString};
@@ -287,11 +293,10 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         const total = scorableQuizData.length;
                         const percentage = total > 0 ? (score / total) * 100 : 0;
                         
-                        pages.results.innerHTML = \`<div class="text-center mb-8"><h2 class="text-3xl font-bold mb-2 font-tajawal">\${translations.quizComplete}</h2></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 text-center mb-8"><p class="text-xl mb-2 text-gray-700 dark:text-gray-300 font-tajawal">\${translations.yourScore}</p><p id="score-text" class="text-5xl font-bold text-teal-500">\${score} / \${total}</p><p id="score-percentage" class="text-lg font-medium text-gray-500 dark:text-gray-400 mt-1">(\${percentage.toFixed(1)}%)</p></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-4"><button id="review-answers-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.reviewAnswers}</button><button id="download-html-btn" class="btn-tertiary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.saveAsHtml}</button><button id="retake-quiz-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.retakeQuiz}</button><button id="exit-btn" class="sm:col-span-3 btn-secondary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.exitToMainMenu}</button></div>\`;
+                        pages.results.innerHTML = \`<div class="text-center mb-8"><h2 class="text-3xl font-bold mb-2 font-tajawal">\${translations.quizComplete}</h2></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 text-center mb-8"><p class="text-xl mb-2 text-gray-700 dark:text-gray-300 font-tajawal">\${translations.yourScore}</p><p id="score-text" class="text-5xl font-bold text-teal-500">\${score} / \${total}</p><p id="score-percentage" class="text-lg font-medium text-gray-500 dark:text-gray-400 mt-1">(\${percentage.toFixed(1)}%)</p></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><button id="review-answers-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.reviewAnswers}</button><button id="retake-quiz-btn" class="btn-primary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.retakeQuiz}</button><button id="exit-btn" class="sm:col-span-2 btn-secondary font-bold py-3 px-4 rounded-lg font-tajawal">\${translations.exitToMainMenu}</button></div>\`;
                         
                         document.getElementById('review-answers-btn').addEventListener('click', () => { loadReviewContent(); showPage('review'); });
                         document.getElementById('retake-quiz-btn').addEventListener('click', startQuiz);
-                        document.getElementById('download-html-btn').addEventListener('click', () => { window.parent.postMessage({ type: 'download-quiz' }, '*'); });
                         document.getElementById('exit-btn').addEventListener('click', () => {
                              window.parent.postMessage({ type: 'quiz-finished', payload: { score, total, percentage, timeTaken } }, '*');
                         });
@@ -326,6 +331,33 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         document.getElementById('back-to-start-from-basmaja-btn').addEventListener('click', () => window.parent.postMessage('quiz-exit', '*'));
                     }
 
+                    function applyCopyProtection() {
+                        const protectedElements = document.querySelectorAll('.protected-content');
+                        const watermark = '\\n\\n---\\nتم إنشاء هذا المحتوى بواسطة تطبيق مولد الاختبارات الذكي - AHMED AL3NANY';
+
+                        protectedElements.forEach(element => {
+                            // الطبقة الأولى: منع القص بالكامل
+                            element.addEventListener('cut', (e) => {
+                                e.preventDefault();
+                            });
+                            
+                            // الطبقة الثانية: اعتراض النسخ وتعديل المحتوى
+                            element.addEventListener('copy', (e) => {
+                                const selection = window.getSelection();
+                                // تأكد من وجود حافظة و نص محدد
+                                if (!selection || !e.clipboardData) return;
+                                
+                                const selectedText = selection.toString();
+                                const watermarkedText = selectedText + watermark;
+
+                                // ضع النص المعدل في الحافظة
+                                e.clipboardData.setData('text/plain', watermarkedText);
+                                // امنع السلوك الافتراضي للنسخ (نسخ النص الأصلي)
+                                e.preventDefault();
+                            });
+                        });
+                    }
+
                     function startQuiz() {
                         if (scorableQuizData.length === 0) { alert(translations.noValidQuestions); return; }
                         userAnswers.fill(null);
@@ -344,6 +376,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
                         document.getElementById('basmaja-btn').addEventListener('click', () => { loadBasmajaContent(); showPage('basmaja'); });
                         showPage('landing');
+                        applyCopyProtection(); // تطبيق الحماية عند بدء التشغيل
                     }
 
                     init();
