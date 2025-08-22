@@ -32,6 +32,26 @@ const CardContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 type ImageUsage = 'auto' | 'link' | 'about';
 
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                const base64Content = reader.result.split(',')[1];
+                if (base64Content) {
+                    resolve(base64Content);
+                } else {
+                    reject(new Error('File content is empty or invalid data URL.'));
+                }
+            } else {
+                reject(new Error('Failed to read file as data URL.'));
+            }
+        };
+        reader.onerror = error => reject(error);
+    });
+};
+
 const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated, onBackToChoice }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -119,23 +139,34 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             setLoadingMessage(t('processing'));
         }
 
-        const formData = new FormData();
-        formData.append('prompt', prompt);
-        formData.append('settings', JSON.stringify(settings));
+        const payload: any = {
+            prompt,
+            settings,
+            imageUsage,
+        };
 
         if (selectedFile) {
-            formData.append('file', selectedFile);
+            payload.file = {
+                content: await fileToBase64(selectedFile),
+                name: selectedFile.name,
+                type: selectedFile.type,
+            };
         }
-        selectedImages.forEach((image) => {
-            formData.append(`images`, image);
-        });
 
-        const API_BASE_URL = (import.meta as any).env.VITE_BACKEND_API_URL || 'http://localhost:3000';
+        if (selectedImages.length > 0) {
+            payload.images = await Promise.all(selectedImages.map(async (imageFile) => ({
+                content: await fileToBase64(imageFile),
+                name: imageFile.name,
+                type: imageFile.type,
+            })));
+        }
 
-        const response = await fetch(`${API_BASE_URL}/generate-quiz`, {
+        const response = await fetch(`https://quiz-puplic-production.up.railway.app/generate-quiz`, {
             method: 'POST',
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
         });
+
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -175,7 +206,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         setIsLoading(false);
         setLoadingMessage('');
     }
-  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode]);
+  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
