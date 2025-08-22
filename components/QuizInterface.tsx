@@ -309,11 +309,26 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                             const isCorrect = userAnswers[index] === q.correctAnswerIndex;
                             const optionsHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'correct-answer' : ''} \${!isCorrect && optIndex === userAnswers[index] ? 'incorrect-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
                             const explanationHTML = q.explanation ? \`<div class="explanation-box mt-4"><h4 class="title">\${translations.explanation}</h4><p class="body">\${q.explanation.replace(/\\n/g, '<br/>')}</p></div>\` : '';
-                             let imageHTML = '';
+                            
+                            let imageHTML = '';
                             if (typeof q.refersToUploadedImageIndex === 'number' && q.refersToUploadedImageIndex >= 0 && selectedImageFiles[q.refersToUploadedImageIndex]) {
-                                imageHTML = \`<img src="\${selectedImageFiles[q.refersToUploadedImageIndex]}" alt="Quiz Image" class="max-w-md mx-auto mb-4 rounded-lg shadow-md" />\`;
+                                imageHTML = \`<img src="\${selectedImageFiles[q.refersToUploadedImageIndex]}" alt="Quiz Image" class="max-w-lg w-full mx-auto mb-4 rounded-lg shadow-md border-2 border-gray-300 dark:border-gray-600" />\`;
                             }
-                            return \`<div class="question-card p-6 rounded-lg review">\${imageHTML}<p class="font-bold text-lg mb-2">\${index + 1}. \${q.question}</p><div class="options space-y-3">\${optionsHTML}</div>\${explanationHTML}</div>\`;
+
+                            let caseHTML = '';
+                            if (q.caseDescription && (index === 0 || q.caseDescription !== scorableQuizData[index - 1].caseDescription)) {
+                                caseHTML = \`<div class="case-card"><h3 class="title">\${translations.caseScenario}</h3><p class="body">\${q.caseDescription}</p></div>\`;
+                            }
+
+                            return \`<div>
+                                        \${caseHTML}
+                                        \${imageHTML}
+                                        <div class="question-card p-6 rounded-lg review">
+                                            <p class="font-bold text-lg mb-2">\${index + 1}. \${q.question}</p>
+                                            <div class="options space-y-3">\${optionsHTML}</div>
+                                            \${explanationHTML}
+                                        </div>
+                                    </div>\`;
                         }).join('');
 
                         pages.review.innerHTML = \`<h2 class="text-3xl font-bold mb-6 text-center font-tajawal">\${translations.reviewAnswersTitle}</h2><div class="space-y-6">\${content}</div><button id="back-to-results-btn" class="btn-primary w-full font-bold py-3 px-4 rounded-lg mt-6 font-tajawal">\${translations.backToResults}</button>\`;
