@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Quiz } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
 import { useSettings, useTranslation } from '../App';
@@ -41,6 +41,9 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [remainingQuestions, setRemainingQuestions] = useState(50);
+  const [progress, setProgress] = useState(0);
+  const progressIntervalRef = useRef<number | null>(null);
+
 
   const { settings, setSettings } = useSettings();
   const { t, lang } = useTranslation();
@@ -106,11 +109,26 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         return;
     }
 
-    try {
-        setIsLoading(true);
-        setError(null);
-        setLoadingMessage(t('processing'));
+    setIsLoading(true);
+    setError(null);
+    setProgress(0);
+    setLoadingMessage(t('processing'));
 
+    if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+    }
+
+    progressIntervalRef.current = window.setInterval(() => {
+        setProgress(prev => {
+            if (prev >= 95) {
+                if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+                return 95;
+            }
+            return prev + 5;
+        });
+    }, 500);
+
+    try {
         const generatedQuiz = await generateQuizContent(
             prompt,
             '', // Subject: Not available in UI, pass empty.
@@ -120,6 +138,8 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             imageUsage
         );
 
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setProgress(100);
         setLoadingMessage(t('finalizingQuiz'));
 
         let base64Images: string[] = [];
@@ -145,11 +165,11 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         onQuizGenerated(quizWithId);
 
     } catch (err: any) {
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setProgress(0);
+        setIsLoading(false);
         console.error("Quiz generation error:", err);
         setError(`${t("errorPrefix")} ${err.message}`);
-    } finally {
-        setIsLoading(false);
-        setLoadingMessage('');
     }
   }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage]);
 
@@ -330,13 +350,18 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         <button
           onClick={handleGenerateQuiz}
           disabled={isLoading || (!prompt && !selectedFile && selectedImages.length === 0)}
-          className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
+          className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
         >
           {isLoading ? (
-            <>
-              <Loader2Icon className="w-6 h-6 animate-spin" />
-              <span>{loadingMessage || t("processing")}</span>
-            </>
+             <div className="w-full flex flex-col items-center justify-center gap-2">
+                <div className="flex items-center gap-3">
+                    <Loader2Icon className="w-6 h-6 animate-spin" />
+                    <span>{loadingMessage}... {progress}%</span>
+                </div>
+                <div className="w-3/4 bg-gray-600 rounded-full h-1.5">
+                    <div className="bg-cyan-400 h-1.5 rounded-full" style={{ width: `${progress}%`, transition: 'width 0.5s ease-in-out' }}></div>
+                </div>
+            </div>
           ) : (
             t("generateNow")
           )}

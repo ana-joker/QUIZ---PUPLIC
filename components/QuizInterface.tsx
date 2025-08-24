@@ -340,7 +340,27 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                              const optionsHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'basmaja-correct-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
                              const explanationHTML = q.explanation ? \`<div class="explanation-box mt-4"><h4 class="title">\${translations.explanation}</h4><p class="body">\${q.explanation.replace(/\\n/g, '<br/>')}</p></div>\` : '';
                              const flawedTag = q.isFlawed ? \`<div class="flawed-tag">Flawed Question</div>\` : '';
-                             return \`<div class="question-card p-6 rounded-lg mb-6">\${flawedTag}<p class="font-bold text-lg mb-4">\${index + 1}. \${q.question}</p><div class="options space-y-3">\${optionsHTML}</div>\${explanationHTML}</div>\`;
+                             
+                             let imageHTML = '';
+                             if (typeof q.refersToUploadedImageIndex === 'number' && q.refersToUploadedImageIndex >= 0 && selectedImageFiles[q.refersToUploadedImageIndex]) {
+                                 imageHTML = \`<img src="\${selectedImageFiles[q.refersToUploadedImageIndex]}" alt="Quiz Image" class="max-w-lg w-full mx-auto mb-4 rounded-lg shadow-md border-2 border-gray-300 dark:border-gray-600" />\`;
+                             }
+                             
+                             let caseHTML = '';
+                             if (q.caseDescription) {
+                                 caseHTML = \`<div class="case-card"><h3 class="title">\${translations.caseScenario}</h3><p class="body">\${q.caseDescription}</p></div>\`;
+                             }
+
+                             return \`<div>
+                                        \${caseHTML}
+                                        \${imageHTML}
+                                        <div class="question-card p-6 rounded-lg mb-6">
+                                            \${flawedTag}
+                                            <p class="font-bold text-lg mb-4">\${index + 1}. \${q.question}</p>
+                                            <div class="options space-y-3">\${optionsHTML}</div>
+                                            \${explanationHTML}
+                                        </div>
+                                     </div>\`;
                         }).join('');
                         pages.basmaja.innerHTML = \`<h2 class="text-3xl font-bold mb-6 text-center font-tajawal">📚 \${translations.fastSummary}</h2><div id="basmaja-container" class="space-y-6">\${content}</div><button id="back-to-start-from-basmaja-btn" class="btn-secondary w-full font-bold py-3 px-4 rounded-lg mt-6 font-tajawal">\${translations.exitToMainMenu}</button>\`;
                         document.getElementById('back-to-start-from-basmaja-btn').addEventListener('click', () => window.parent.postMessage('quiz-exit', '*'));

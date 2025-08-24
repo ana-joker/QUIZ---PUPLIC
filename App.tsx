@@ -328,8 +328,8 @@ const defaultSettings: AppSettings = {
     numImageQuestions: '1',
     difficulty: 'Medium',
     additionalInstructions: '',
-    quizLanguage: 'Arabic',
-    explanationLanguage: 'Arabic',
+    quizLanguage: 'English',
+    explanationLanguage: 'English',
     knowledgeLevel: 'Intermediate',
     learningGoal: 'Apply Information',
     questionTypes: ['MCQ'], // Default to MCQ as per new design
