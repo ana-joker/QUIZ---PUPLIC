@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Quiz } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
@@ -161,7 +162,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             })));
         }
 
-        const response = await fetch(`https://quiz-puplic-production.up.railway.app/generate-quiz`, {
+        const response = await fetch(`https://quiz-time-backend-production.up.railway.app/generate-quiz`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
