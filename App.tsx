@@ -160,7 +160,9 @@ const translations = {
     "errorDeletingQuiz": "Failed to delete quiz.",
     "loadingHistory": "Loading quiz history...",
     "delete": "Delete",
-    "saveAsHtml": "Save as HTML"
+    "saveAsHtml": "Save as HTML",
+    "doubleClickInstruction": "To answer a question, click your chosen answer twice to confirm.",
+    "uploadingFile": "Uploading File"
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -309,7 +311,9 @@ const translations = {
     "errorDeletingQuiz": "فشل حذف الاختبار.",
     "loadingHistory": "جاري تحميل سجل الاختبارات...",
     "delete": "حذف",
-    "saveAsHtml": "حفظ كملف HTML"
+    "saveAsHtml": "حفظ كملف HTML",
+    "doubleClickInstruction": "للإجابة على السؤال، يرجى الضغط على إجابتك المختارة مرتين للتأكيد.",
+    "uploadingFile": "جاري رفع الملف"
   }
 };
 type TranslationKey = keyof typeof translations.en;

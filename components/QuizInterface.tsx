@@ -94,6 +94,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
             reviewAnswersTitle: t('reviewAnswersTitle'),
             transformContentToQuiz: t('transformContentToQuiz'),
             saveAsHtml: t('saveAsHtml'),
+            doubleClickInstruction: t('doubleClickInstruction'),
         });
 
         return `
@@ -141,6 +142,8 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     .explanation-box .title { font-weight: bold; color: var(--ms-text-color); }
                     .explanation-box .body { margin-top: 0.5rem; color: var(--ms-text-color); }
                     .option-label { cursor: pointer; padding: 0.75rem 1rem; border: 2px solid transparent; border-radius: 0.375rem; transition: all 0.2s; background-color: rgba(128,128,128,0.1); }
+                    .option-label.pending { border-color: #FBBF24; background-color: #FEF3C7; }
+                    html.dark .option-label.pending { border-color: #FBBF24; background-color: rgba(251, 191, 36, 0.2); }
                     .option-label:hover { border-color: var(--ms-blue); }
                     .option-label.selected { border-color: var(--ms-dark-blue); background-color: var(--ms-light-blue); }
                     .option-label.correct-answer-feedback { background-color: var(--ms-correct-bg) !important; border-color: var(--ms-correct-green) !important; color: #000 !important; }
@@ -178,6 +181,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     const scorableQuizData = quizData.filter(q => !q.isFlawed);
                     const userAnswers = new Array(scorableQuizData.length).fill(null);
                     let currentQuestionIndex = 0;
+                    let pendingOptionIndex = null;
                     let quizStartTime = 0;
                     let timerInterval;
 
@@ -244,12 +248,14 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         quizContentContainer.innerHTML = \`\${imageHTML}\${caseHTML}<div class="question-card p-6 rounded-lg"><p class="font-bold text-base sm:text-lg mb-4"> \${q.question}</p><div class="options space-y-3" data-question-index="\${index}">\${optionsHTML}</div><div id="feedback-area-\${index}" class="mt-4"></div></div>\`;
                         
                         const optionsElement = quizContentContainer.querySelector('.options');
+                        pendingOptionIndex = null; // Reset for new question
+
                         if (userAnswers[index] !== null) {
                             const radio = quizContentContainer.querySelector(\`input[value="\${userAnswers[index]}"]\`);
                             if(radio) radio.checked = true;
                             showFeedback(index);
                         } else {
-                            if(optionsElement) optionsElement.addEventListener('change', handleOptionSelection);
+                            optionsElement.querySelectorAll('.option-label').forEach(label => label.addEventListener('click', handleOptionClick));
                         }
                         updateNavigationButtons();
                         updateProgressBar();
@@ -260,9 +266,8 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         const userAnswer = userAnswers[index];
                         const isCorrect = userAnswer === q.correctAnswerIndex;
                         const feedbackArea = document.getElementById(\`feedback-area-\${index}\`);
-                        const quizContentContainer = document.getElementById('quiz-content');
-                        const optionsContainer = quizContentContainer.querySelector('.options');
-                        if(optionsContainer) optionsContainer.removeEventListener('change', handleOptionSelection);
+                        const optionsContainer = document.querySelector('.options');
+                        
                         optionsContainer.querySelectorAll('input').forEach(input => input.disabled = true);
                         
                         const selectedLabel = optionsContainer.querySelector(\`label[for="q\${index}o\${userAnswer}"]\`);
@@ -280,10 +285,27 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         updateNavigationButtons();
                     }
 
-                    function handleOptionSelection(e) {
-                        const questionIndex = parseInt(e.currentTarget.dataset.questionIndex);
-                        userAnswers[questionIndex] = parseInt(e.target.value);
-                        showFeedback(questionIndex);
+                    function handleOptionClick(e) {
+                        e.preventDefault();
+                        const label = e.currentTarget;
+                        const radio = document.getElementById(label.getAttribute('for'));
+                        if (!radio || radio.disabled) return;
+                        
+                        const clickedOptionIndex = parseInt(radio.value);
+
+                        if (pendingOptionIndex === clickedOptionIndex) {
+                            // Second click: CONFIRM
+                            pendingOptionIndex = null;
+                            label.classList.remove('pending');
+                            radio.checked = true;
+                            userAnswers[currentQuestionIndex] = clickedOptionIndex;
+                            showFeedback(currentQuestionIndex);
+                        } else {
+                            // First click or changing selection
+                            pendingOptionIndex = clickedOptionIndex;
+                            document.querySelectorAll('.option-label').forEach(l => l.classList.remove('pending'));
+                            label.classList.add('pending');
+                        }
                     }
                     
                     function finishQuiz() {
@@ -407,7 +429,15 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     }
 
                     function init() {
-                        pages.landing.innerHTML = \`<h1 class="text-3xl sm:text-4xl font-bold mb-2 font-tajawal">\${quizTitle}</h1><h2 class="text-xl sm:text-2xl text-gray-600 dark:text-gray-300 mb-4 font-tajawal">Scientific Quiz</h2><p class="mb-8 font-tajawal">\${translations.transformContentToQuiz}</p><div class="flex flex-col sm:flex-row gap-4 justify-center mb-8"><button id="start-quiz-btn" class="btn-primary font-bold py-3 px-8 rounded-lg text-lg font-tajawal">\${translations.startQuiz}</button><button id="basmaja-btn" class="btn-secondary font-bold py-3 px-8 rounded-lg text-lg font-tajawal">💡 \${translations.fastSummary}</button></div>\`;
+                        pages.landing.innerHTML = \`<h1 class="text-3xl sm:text-4xl font-bold mb-2 font-tajawal">\${quizTitle}</h1>
+                            <h2 class="text-xl sm:text-2xl text-gray-600 dark:text-gray-300 mb-4 font-tajawal">Scientific Quiz</h2>
+                            <p class="mb-6 font-tajawal">\${translations.transformContentToQuiz}</p>
+                            <div class="p-4 mb-8 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 dark:bg-yellow-900/50 dark:border-yellow-400 dark:text-yellow-200 rounded-r-lg text-start">
+                                <p class="font-bold">\${translations.doubleClickInstruction}</p>
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+                                <button id="start-quiz-btn" class="btn-primary font-bold py-3 px-8 rounded-lg text-lg font-tajawal">\${translations.startQuiz}</button><button id="basmaja-btn" class="btn-secondary font-bold py-3 px-8 rounded-lg text-lg font-tajawal">💡 \${translations.fastSummary}</button>
+                            </div>\`;
                         document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
                         document.getElementById('basmaja-btn').addEventListener('click', () => { loadBasmajaContent(); showPage('basmaja'); });
                         showPage('landing');

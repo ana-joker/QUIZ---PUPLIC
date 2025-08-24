@@ -1,3 +1,4 @@
+
 import { AppSettings, Quiz } from '../types';
 
 // The backend service is responsible for handling Gemini API calls.
@@ -5,55 +6,60 @@ import { AppSettings, Quiz } from '../types';
 // It's recommended to set this as an environment variable `BACKEND_URL` in your deployment environment (e.g., Vercel).
 const BACKEND_URL = process.env.BACKEND_URL || 'https://quiz-time-backend-production.up.railway.app';
 
-export const generateQuizContent = async (
+export const generateQuizContent = (
   prompt: string,
   subject: string, // subject is not used in the UI, but part of the function signature
   settings: AppSettings,
   file: File | null,
   images: File[],
-  imageUsage: 'auto' | 'link' | 'about'
+  imageUsage: 'auto' | 'link' | 'about',
+  onUploadProgress: (progress: { loaded: number; total: number }) => void
 ): Promise<Quiz> => {
-  const formData = new FormData();
-  formData.append('prompt', prompt);
-  formData.append('settings', JSON.stringify(settings));
-  formData.append('imageUsage', imageUsage);
+  return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('prompt', prompt);
+      formData.append('settings', JSON.stringify(settings));
+      formData.append('imageUsage', imageUsage);
 
-  if (file) {
-    formData.append('file', file);
-  }
+      if (file) {
+          formData.append('file', file);
+      }
 
-  images.forEach(imageFile => {
-    formData.append('images', imageFile);
+      images.forEach(imageFile => {
+          formData.append('images', imageFile);
+      });
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BACKEND_URL}/generate-quiz`, true);
+
+      xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+              onUploadProgress({ loaded: event.loaded, total: event.total });
+          }
+      };
+
+      xhr.onload = () => {
+          try {
+              const responseData = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve(responseData as Quiz);
+              } else {
+                  const errorMsg = responseData.error || `Request failed with status ${xhr.status}`;
+                  reject(new Error(errorMsg));
+              }
+          } catch (e) {
+              reject(new Error("Failed to parse server response."));
+          }
+      };
+
+      xhr.onerror = () => {
+          reject(new Error("Could not connect to the quiz generation service. Please check your internet connection and try again."));
+      };
+      
+      xhr.ontimeout = () => {
+          reject(new Error("The request timed out. The server is taking too long to respond."));
+      };
+
+      xhr.send(formData);
   });
-
-  try {
-    const response = await fetch(`${BACKEND_URL}/generate-quiz`, {
-      method: 'POST',
-      body: formData,
-      // Headers are not strictly necessary for FormData with fetch, 
-      // as the browser sets the 'Content-Type' to 'multipart/form-data' automatically.
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      // If the backend provides a specific error message, use it.
-      const errorMsg = responseData.error || `Request failed with status ${response.status}`;
-      throw new Error(errorMsg);
-    }
-    
-    // The backend already processes the quiz data, so we can return it directly.
-    return responseData as Quiz;
-
-  } catch (error) {
-    console.error("Backend API call failed:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // Provide more user-friendly error messages based on common issues
-    if (errorMessage.includes('Failed to fetch')) {
-        throw new Error("Could not connect to the quiz generation service. Please check your internet connection and try again.");
-    }
-
-    throw new Error(`Failed to generate quiz: ${errorMessage}`);
-  }
 };

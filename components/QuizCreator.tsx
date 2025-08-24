@@ -38,12 +38,11 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imageUsage, setImageUsage] = useState<ImageUsage>('auto');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState('');
   const [remainingQuestions, setRemainingQuestions] = useState(50);
-  const [progress, setProgress] = useState(0);
-  const progressIntervalRef = useRef<number | null>(null);
-
 
   const { settings, setSettings } = useSettings();
   const { t, lang } = useTranslation();
@@ -66,18 +65,14 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   };
 
   const handleGenerateQuiz = useCallback(async () => {
-    // 1. Basic input check
     if (!prompt && !selectedFile && selectedImages.length === 0) {
       setError(t("inputError"));
       return;
     }
-
-    // 2. Content limits check
     if (creationMode === 'text' && prompt.length > 40000) {
         setError(t("promptTooLongError", { count: '40,000' }));
         return;
     }
-
     if (creationMode === 'pdf' && selectedFile) {
         const MAX_PDF_SIZE_MB = 10;
         if (selectedFile.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
@@ -85,25 +80,20 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             return;
         }
     }
-
     const MAX_IMAGES = 5;
     if (selectedImages.length > MAX_IMAGES) {
         setError(t("tooManyImagesError", { count: MAX_IMAGES }));
         return;
     }
-
-    // 3. Question count check
     const totalMCQs = parseInt(settings.numMCQs, 10) || 0;
     const totalCases = parseInt(settings.numCases, 10) || 0;
     const qPerCase = parseInt(settings.questionsPerCase, 10) || 0;
     const totalImageQuestions = parseInt(settings.numImageQuestions, 10) || 0;
     const calculatedTotalQuestions = totalMCQs + (totalCases * qPerCase) + totalImageQuestions;
-
     if (calculatedTotalQuestions <= 0) {
         setError(t("noQuestionsRequestedError"));
         return;
     }
-
     if (calculatedTotalQuestions > 50) {
         setError(t("tooManyQuestionsError", { count: 50 }));
         return;
@@ -111,36 +101,49 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
     setIsLoading(true);
     setError(null);
-    setProgress(0);
-    setLoadingMessage(t('processing'));
+    
+    let uploadStartTime = Date.now();
+    let lastLoadedBytes = 0;
 
-    if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-    }
+    const onUploadProgress = ({ loaded, total }: { loaded: number; total: number }) => {
+        if (!isUploading) setIsUploading(true);
+        if (total > 0) {
+            const currentProgress = (loaded / total) * 100;
+            setUploadProgress(currentProgress);
 
-    progressIntervalRef.current = window.setInterval(() => {
-        setProgress(prev => {
-            if (prev >= 95) {
-                if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-                return 95;
+            const now = Date.now();
+            const timeDiffSeconds = (now - uploadStartTime) / 1000;
+            
+            if (timeDiffSeconds > 0.5 || loaded === total) { 
+                const bytesDiff = loaded - lastLoadedBytes;
+                const speedBps = timeDiffSeconds > 0 ? bytesDiff / timeDiffSeconds : 0;
+
+                let speedText = '';
+                if (speedBps > 1024 * 1024) {
+                    speedText = `${(speedBps / (1024 * 1024)).toFixed(2)} MB/s`;
+                } else if (speedBps > 1024) {
+                    speedText = `${(speedBps / 1024).toFixed(1)} KB/s`;
+                } else {
+                    speedText = `${speedBps.toFixed(0)} B/s`;
+                }
+                setUploadSpeed(speedText);
+                
+                uploadStartTime = now;
+                lastLoadedBytes = loaded;
             }
-            return prev + 5;
-        });
-    }, 500);
+
+            if (currentProgress >= 100) {
+                setIsUploading(false);
+            }
+        }
+    };
 
     try {
         const generatedQuiz = await generateQuizContent(
-            prompt,
-            '', // Subject: Not available in UI, pass empty.
-            settings,
+            prompt, '', settings,
             creationMode === 'pdf' ? selectedFile : null,
-            selectedImages,
-            imageUsage
+            selectedImages, imageUsage, onUploadProgress
         );
-
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        setProgress(100);
-        setLoadingMessage(t('finalizingQuiz'));
 
         let base64Images: string[] = [];
         if (selectedImages.length > 0) {
@@ -156,22 +159,20 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         }
         
         const quizWithImages = { ...generatedQuiz, selectedImageFiles: base64Images };
-
-        // Save the newly generated quiz to IndexedDB and get its ID
         const savedId = await saveQuizToIndexedDB(quizWithImages);
-        
         const quizWithId = { ...quizWithImages, id: savedId };
-
         onQuizGenerated(quizWithId);
 
     } catch (err: any) {
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        setProgress(0);
-        setIsLoading(false);
         console.error("Quiz generation error:", err);
         setError(`${t("errorPrefix")} ${err.message}`);
+    } finally {
+        setIsLoading(false);
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadSpeed(null);
     }
-  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage]);
+  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -340,6 +341,18 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         </CardContent>
       </Card>
       
+      {isUploading && (
+        <div className="p-4 bg-slate-900/50 border border-slate-700 rounded-lg">
+            <div className="flex justify-between items-center text-sm font-medium text-gray-200 mb-2">
+                <span>{t('uploadingFile')}... {uploadProgress.toFixed(0)}%</span>
+                {uploadSpeed && <span className="font-mono text-cyan-300">{uploadSpeed}</span>}
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2.5">
+                <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${uploadProgress}%`, transition: 'width 0.2s ease-in-out' }}></div>
+            </div>
+        </div>
+      )}
+
       {error && (
         <div className="p-4 bg-red-900/50 border border-red-700 text-red-200 rounded-lg">
           <strong>{t("errorPrefix")}</strong> {error}
@@ -353,14 +366,9 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
           className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
         >
           {isLoading ? (
-             <div className="w-full flex flex-col items-center justify-center gap-2">
-                <div className="flex items-center gap-3">
-                    <Loader2Icon className="w-6 h-6 animate-spin" />
-                    <span>{loadingMessage}... {progress}%</span>
-                </div>
-                <div className="w-3/4 bg-gray-600 rounded-full h-1.5">
-                    <div className="bg-cyan-400 h-1.5 rounded-full" style={{ width: `${progress}%`, transition: 'width 0.5s ease-in-out' }}></div>
-                </div>
+             <div className="flex items-center gap-3">
+                <Loader2Icon className="w-6 h-6 animate-spin" />
+                <span>{isUploading ? t('uploadingFile') : t('processing')}...</span>
             </div>
           ) : (
             t("generateNow")
