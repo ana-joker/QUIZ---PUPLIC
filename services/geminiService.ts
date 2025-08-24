@@ -63,11 +63,11 @@ export const generateQuizContent = async (
   imageUsage: 'auto' | 'link' | 'about'
 ): Promise<Quiz> => {
   
-    if (!settings.apiKey && !process.env.API_KEY) {
-      throw new Error("API Key not found. Please set your Gemini API key in the settings menu.");
+    if (!process.env.API_KEY) {
+      throw new Error("API Key not found. Please ensure it is set in the environment variables.");
     }
     
-    const ai = new GoogleGenAI({ apiKey: settings.apiKey || process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const schema = {
         type: Type.OBJECT,
@@ -346,7 +346,7 @@ ${imageInstruction}`;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (errorMessage.includes('API key') || errorMessage.includes('403')) {
-        throw new Error("The provided API Key is invalid or has insufficient permissions. Please check the key in settings.");
+        throw new Error("The provided API Key is invalid or has insufficient permissions. Please check the key in the environment variables.");
     }
     if (errorMessage.includes('400') || errorMessage.includes('responseSchema')) {
         throw new Error("The model could not generate content that matches the requested format. Please try simplifying your request or reducing the number of questions.");

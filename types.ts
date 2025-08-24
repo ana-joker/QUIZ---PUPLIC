@@ -80,7 +80,6 @@ export interface AppSettings {
   theme: 'light' | 'dark';
   fontSize: 'small' | 'medium' | 'large';
   uiLanguage: 'ar' | 'en';
-  apiKey: string;
   
   // --- Model Parameters ---
   temperature: number;

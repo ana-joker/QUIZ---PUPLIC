@@ -88,17 +88,6 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
             <button onClick={() => handleLocalSettingChange('fontSize', 'large')} className={`py-2 rounded-md ${localSettings.fontSize === 'large' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsLarge")}</button>
         </div>
       </div>
-      <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-        <label htmlFor="api-key-input" className="font-medium text-gray-700 dark:text-gray-300">{t("settingsApiKey")}</label>
-        <input
-            id="api-key-input"
-            type="password"
-            value={localSettings.apiKey}
-            onChange={e => handleLocalSettingChange('apiKey', e.target.value)}
-            placeholder={t("settingsApiKeyPlaceholder")}
-            className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-2 focus:ring-teal-500"
-        />
-      </div>
     </div>
   );
 
