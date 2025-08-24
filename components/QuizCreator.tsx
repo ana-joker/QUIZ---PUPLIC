@@ -1,12 +1,10 @@
 
-
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Quiz } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
 import { useSettings, useTranslation } from '../App';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
+import { generateQuizContent } from '../services/geminiService';
 
 interface QuizCreatorProps {
   creationMode: 'text' | 'pdf';
@@ -33,26 +31,6 @@ const CardContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 type ImageUsage = 'auto' | 'link' | 'about';
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                const base64Content = reader.result.split(',')[1];
-                if (base64Content) {
-                    resolve(base64Content);
-                } else {
-                    reject(new Error('File content is empty or invalid data URL.'));
-                }
-            } else {
-                reject(new Error('Failed to read file as data URL.'));
-            }
-        };
-        reader.onerror = error => reject(error);
-    });
-};
 
 const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated, onBackToChoice }) => {
   const [prompt, setPrompt] = useState('');
@@ -131,51 +109,16 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     try {
         setIsLoading(true);
         setError(null);
+        setLoadingMessage(t('processing'));
 
-        if (creationMode === 'pdf' && selectedFile) {
-            setLoadingMessage(t('processing'));
-        } else if (selectedImages.length > 0) {
-            setLoadingMessage(t('processing'));
-        }
-        else {
-            setLoadingMessage(t('processing'));
-        }
-
-        const payload: any = {
+        const generatedQuiz = await generateQuizContent(
             prompt,
-            settings: JSON.stringify(settings),
-            imageUsage,
-        };
-
-        if (selectedFile) {
-            payload.file = {
-                content: await fileToBase64(selectedFile),
-                name: selectedFile.name,
-                type: selectedFile.type,
-            };
-        }
-
-        if (selectedImages.length > 0) {
-            payload.images = await Promise.all(selectedImages.map(async (imageFile) => ({
-                content: await fileToBase64(imageFile),
-                name: imageFile.name,
-                type: imageFile.type,
-            })));
-        }
-
-        const response = await fetch(`https://quiz-time-backend-production.up.railway.app/generate-quiz`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || t("unknownError"));
-        }
-
-        const generatedQuiz: Quiz = await response.json();
+            '', // Subject: Not available in UI, pass empty.
+            settings,
+            creationMode === 'pdf' ? selectedFile : null,
+            selectedImages,
+            imageUsage
+        );
 
         setLoadingMessage(t('finalizingQuiz'));
 
