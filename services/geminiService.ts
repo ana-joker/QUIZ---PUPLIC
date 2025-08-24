@@ -2,7 +2,8 @@ import { AppSettings, Quiz } from '../types';
 
 // The backend service is responsible for handling Gemini API calls.
 // This URL should point to your deployed backend (e.g., on Railway).
-const BACKEND_URL = 'https://quiz-time-backend-production.up.railway.app';
+// It's recommended to set this as an environment variable `BACKEND_URL` in your deployment environment (e.g., Vercel).
+const BACKEND_URL = process.env.BACKEND_URL || 'https://quiz-time-backend-production.up.railway.app';
 
 export const generateQuizContent = async (
   prompt: string,
