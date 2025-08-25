@@ -163,11 +163,7 @@ const translations = {
     "doubleClickInstruction": "To answer a question, click your chosen answer twice to confirm.",
     "uploadingFile": "Uploading File",
     "promptTruncated": "Text was truncated to the {count} character limit.",
-    "pdfContentTruncated": "File content was too long. The quiz will be generated using the first {count} characters.",
-    "analyzingPdf": "Analyzing file...",
-    "pdfPasswordProtected": "This PDF is password-protected and cannot be processed.",
-    "pdfInvalid": "The file appears to be corrupted or is not a valid PDF.",
-    "pdfReadError": "Failed to read the file. It might be incompatible or corrupted."
+    "pdfContentWarning": "Note: For large files, content may be truncated by the server if it exceeds the text limit."
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -319,11 +315,7 @@ const translations = {
     "doubleClickInstruction": "للإجابة على السؤال، يرجى الضغط على إجابتك المختارة مرتين للتأكيد.",
     "uploadingFile": "جاري رفع الملف",
     "promptTruncated": "تم قص النص ليتوافق مع الحد الأقصى البالغ {count} حرفًا.",
-    "pdfContentTruncated": "محتوى الملف كان طويلًا جدًا. سيتم إنشاء الاختبار باستخدام أول {count} حرف فقط.",
-    "analyzingPdf": "جاري تحليل الملف...",
-    "pdfPasswordProtected": "هذا الملف محمي بكلمة مرور ولا يمكن معالجته.",
-    "pdfInvalid": "يبدو أن الملف تالف أو ليس ملف PDF صالحًا.",
-    "pdfReadError": "فشل في قراءة الملف. قد يكون غير متوافق أو تالفًا."
+    "pdfContentWarning": "ملاحظة: بالنسبة للملفات الكبيرة، قد يتم اقتطاع المحتوى بواسطة الخادم إذا تجاوز حد النص."
   }
 };
 type TranslationKey = keyof typeof translations.en;

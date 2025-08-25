@@ -5,10 +5,6 @@ import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './u
 import { useSettings, useTranslation, useToast } from '../App';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
-
-// Configure the PDF.js worker to enable text extraction in the browser.
-GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs';
 
 interface QuizCreatorProps {
   creationMode: 'text' | 'pdf';
@@ -41,8 +37,6 @@ const MAX_TEXT_LENGTH = 40000;
 const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated, onBackToChoice }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileTextContent, setFileTextContent] = useState<string | null>(null);
-  const [isParsingFile, setIsParsingFile] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imageUsage, setImageUsage] = useState<ImageUsage>('auto');
   const [isLoading, setIsLoading] = useState(false);
@@ -95,65 +89,31 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
+    e.target.value = ''; // Allow re-selecting the same file
     if (!file) return;
 
     const MAX_PDF_SIZE_MB = 10;
     if (file.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
         setError(t("pdfTooLargeError", { size: MAX_PDF_SIZE_MB }));
         setSelectedFile(null);
-        setFileTextContent(null);
         return;
+    }
+    
+    // Warn user about potential truncation for larger files.
+    if (file.size > 5 * 1024 * 1024) { // 5MB threshold for warning
+        addToast(t("pdfContentWarning"), 'warning');
     }
 
     setSelectedFile(file);
     setError(null);
-    setIsParsingFile(true);
-
-    try {
-        let fullText = '';
-        if (file.type === 'application/pdf') {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await getDocument({ data: arrayBuffer }).promise;
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
-            }
-        } else { // Handle .txt and other text-based files
-            fullText = await file.text();
-        }
-
-        if (fullText.length > MAX_TEXT_LENGTH) {
-            setFileTextContent(fullText.substring(0, MAX_TEXT_LENGTH));
-            addToast(t("pdfContentTruncated", { count: MAX_TEXT_LENGTH.toLocaleString() }), 'warning');
-        } else {
-            setFileTextContent(fullText);
-        }
-    } catch (parseError: any) {
-        console.error("Error parsing file:", parseError);
-        let userErrorMessage = t("pdfReadError");
-        if (parseError.name === 'PasswordException') {
-            userErrorMessage = t("pdfPasswordProtected");
-        } else if (parseError.name === 'InvalidPDFException') {
-            userErrorMessage = t("pdfInvalid");
-        }
-        setError(userErrorMessage);
-        setSelectedFile(null);
-        setFileTextContent(null);
-    } finally {
-        setIsParsingFile(false);
-        e.target.value = ''; // Allow re-selecting the same file
-    }
   };
 
     const clearSelectedFile = () => {
         setSelectedFile(null);
-        setFileTextContent(null);
     };
 
   const handleGenerateQuiz = useCallback(async () => {
-    const mainContent = creationMode === 'pdf' ? fileTextContent : prompt;
-    if (!mainContent && selectedImages.length === 0) {
+    if (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0) {
       setError(t("inputError"));
       return;
     }
@@ -218,9 +178,13 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
     try {
         const generatedQuiz = await generateQuizContent(
-            mainContent || '', '', settings,
-            null, // File object is not sent; its content is sent in the prompt
-            selectedImages, imageUsage, onUploadProgress
+            creationMode === 'text' ? prompt : '',
+            '', // Subject is unused
+            settings,
+            creationMode === 'pdf' ? selectedFile : null,
+            selectedImages, 
+            imageUsage, 
+            onUploadProgress
         );
 
         let base64Images: string[] = [];
@@ -250,7 +214,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         setUploadProgress(0);
         setUploadSpeed(null);
     }
-  }, [prompt, fileTextContent, settings, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast]);
+  }, [prompt, selectedFile, settings, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -294,17 +258,13 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                  </>
             ) : (
                 <>
-                    <label htmlFor="file-input" className={`w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition ${isParsingFile ? 'cursor-wait' : 'cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400'}`}>
-                       {isParsingFile ? (
-                           <Loader2Icon className="w-8 h-8 text-slate-400 animate-spin" />
-                       ) : (
-                           <FileTextIcon className="w-8 h-8 text-slate-400" />
-                       )}
+                    <label htmlFor="file-input" className="w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400">
+                       <FileTextIcon className="w-8 h-8 text-slate-400" />
                        <span className="text-base font-semibold text-slate-300">
-                           {isParsingFile ? t('analyzingPdf') : t("pdfUploadInstruction")}
+                           {t("pdfUploadInstruction")}
                         </span>
                     </label>
-                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} disabled={isParsingFile} />
+                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} />
                     <FileInputDisplay file={selectedFile} onClear={clearSelectedFile} icon={<FileTextIcon className="w-5 h-5 text-cyan-400" />} />
                 </>
             )}
@@ -318,7 +278,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             { creationMode === 'text' && !prompt && selectedImages.length > 0 &&
                 <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
             }
-            { creationMode === 'pdf' && !fileTextContent && selectedImages.length > 0 &&
+            { creationMode === 'pdf' && !selectedFile && selectedImages.length > 0 &&
                 <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
             }
             <label htmlFor="image-input" className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400 transition">
@@ -455,7 +415,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       <div className="mt-8">
         <button
           onClick={handleGenerateQuiz}
-          disabled={isLoading || isParsingFile || (!(creationMode === 'pdf' ? fileTextContent : prompt) && selectedImages.length === 0)}
+          disabled={isLoading || (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0)}
           className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
         >
           {isLoading ? (
