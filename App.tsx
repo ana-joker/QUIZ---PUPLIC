@@ -8,7 +8,7 @@ import ChoiceScreen from './components/ChoiceScreen';
 import SettingsPopover from './components/SettingsPopover';
 import { Quiz, RecallItem, AppSettings } from './types';
 import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
-import { SettingsIcon, HistoryIcon, BrainCircuitIcon } from './components/ui/Icons';
+import { SettingsIcon, HistoryIcon, BrainCircuitIcon, XIcon } from './components/ui/Icons';
 
 
 // --- I18N ---
@@ -162,7 +162,9 @@ const translations = {
     "delete": "Delete",
     "saveAsHtml": "Save as HTML",
     "doubleClickInstruction": "To answer a question, click your chosen answer twice to confirm.",
-    "uploadingFile": "Uploading File"
+    "uploadingFile": "Uploading File",
+    "promptTruncated": "Text was truncated to the {count} character limit.",
+    "pdfContentWarning": "Note: The content of large PDFs may be truncated if it exceeds the text limit."
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -313,10 +315,71 @@ const translations = {
     "delete": "حذف",
     "saveAsHtml": "حفظ كملف HTML",
     "doubleClickInstruction": "للإجابة على السؤال، يرجى الضغط على إجابتك المختارة مرتين للتأكيد.",
-    "uploadingFile": "جاري رفع الملف"
+    "uploadingFile": "جاري رفع الملف",
+    "promptTruncated": "تم قص النص ليتوافق مع الحد الأقصى البالغ {count} حرفًا.",
+    "pdfContentWarning": "ملاحظة: قد يتم اقتطاع محتوى ملفات PDF الكبيرة. سيتم إنشاء الاختبار بناءً على الحد المسموح به من النص."
   }
 };
 type TranslationKey = keyof typeof translations.en;
+
+// --- TOAST NOTIFICATION SYSTEM ---
+type Toast = {
+    id: number;
+    message: string;
+    type: 'info' | 'warning';
+};
+
+type ToastContextType = {
+    addToast: (message: string, type: Toast['type']) => void;
+};
+
+const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+const useToast = () => {
+    const context = useContext(ToastContext);
+    if (!context) throw new Error('useToast must be used within a ToastProvider');
+    return context;
+};
+
+const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [toasts, setToasts] = useState<Toast[]>([]);
+
+    const addToast = useCallback((message: string, type: Toast['type']) => {
+        const id = Date.now();
+        setToasts(prevToasts => [...prevToasts, { id, message, type }]);
+        setTimeout(() => {
+            setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
+        }, 4000); // Notification disappears after 4 seconds
+    }, []);
+
+    return (
+        <ToastContext.Provider value={{ addToast }}>
+            {children}
+            <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-4 space-y-2 z-50">
+                {toasts.map(toast => (
+                    <div key={toast.id} className="toast-animation bg-slate-800/80 dark:bg-slate-900/80 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-3">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'warning' ? 'bg-amber-500' : 'bg-cyan-500'}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </span>
+                        <p className="text-sm font-medium">{toast.message}</p>
+                    </div>
+                ))}
+            </div>
+             <style>{`
+                .toast-animation {
+                    animation: slide-in-out 4s ease-in-out forwards;
+                }
+                @keyframes slide-in-out {
+                    0% { opacity: 0; transform: translateY(100%); }
+                    10% { opacity: 1; transform: translateY(0); }
+                    90% { opacity: 1; transform: translateY(0); }
+                    100% { opacity: 0; transform: translateY(100%); }
+                }
+            `}</style>
+        </ToastContext.Provider>
+    );
+};
+
 
 // --- SETTINGS CONTEXT ---
 const defaultSettings: AppSettings = {
@@ -520,9 +583,13 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <SettingsProvider>
-            <AppContent />
+            <ToastProvider>
+                 <AppContent />
+            </ToastProvider>
         </SettingsProvider>
     );
 };
 
+// Make the custom hook available for other components
+export { useToast };
 export default App;

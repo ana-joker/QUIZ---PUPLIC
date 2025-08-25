@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Quiz } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
-import { useSettings, useTranslation } from '../App';
+import { useSettings, useTranslation, useToast } from '../App';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
 
@@ -32,6 +32,8 @@ const CardContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 type ImageUsage = 'auto' | 'link' | 'about';
 
+const MAX_TEXT_LENGTH = 40000;
+
 const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated, onBackToChoice }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -46,6 +48,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
   const { settings, setSettings } = useSettings();
   const { t, lang } = useTranslation();
+  const { addToast } = useToast();
 
   useEffect(() => {
     const MAX_TOTAL_QUESTIONS = 50;
@@ -63,16 +66,60 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const handleSettingChange = (field: keyof typeof settings, value: any) => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
+  
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newText = e.target.value;
+      if (newText.length <= MAX_TEXT_LENGTH) {
+          setPrompt(newText);
+      }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const pastedText = e.clipboardData.getData('text');
+      const currentText = e.currentTarget.value;
+      const selectionStart = e.currentTarget.selectionStart;
+      const selectionEnd = e.currentTarget.selectionEnd;
+      
+      const newText = currentText.slice(0, selectionStart) + pastedText + currentText.slice(selectionEnd);
+
+      if (newText.length > MAX_TEXT_LENGTH) {
+          addToast(t("promptTruncated", { count: MAX_TEXT_LENGTH.toLocaleString() }), 'warning');
+          // The actual truncation will be handled by the onChange event that follows paste
+      }
+  };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    if (!file) return;
+
+    const MAX_PDF_SIZE_MB = 10;
+    const PDF_WARNING_THRESHOLD_MB = 5;
+
+    // Hard limit check
+    if (file.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
+        setError(t("pdfTooLargeError", { size: MAX_PDF_SIZE_MB }));
+        setSelectedFile(null); // Clear selection
+        return;
+    }
+
+    // Warning for potentially long content
+    if (file.size > PDF_WARNING_THRESHOLD_MB * 1024 * 1024) {
+        addToast(t("pdfContentWarning"), 'info');
+    }
+    
+    setSelectedFile(file);
+    setError(null); // Clear previous errors
+    e.target.value = ''; // Allow re-selecting the same file
+  };
 
   const handleGenerateQuiz = useCallback(async () => {
     if (!prompt && !selectedFile && selectedImages.length === 0) {
       setError(t("inputError"));
       return;
     }
-    if (creationMode === 'text' && prompt.length > 40000) {
-        setError(t("promptTooLongError", { count: '40,000' }));
-        return;
-    }
+    
+    // The blocking prompt length error is removed, as truncation is now handled automatically.
+    
     if (creationMode === 'pdf' && selectedFile) {
         const MAX_PDF_SIZE_MB = 10;
         if (selectedFile.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
@@ -172,7 +219,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         setUploadProgress(0);
         setUploadSpeed(null);
     }
-  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading]);
+  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -200,21 +247,27 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         <CardHeader>{creationMode === 'text' ? t('step1Text') : t('step1Pdf')}</CardHeader>
         <CardContent>
             {creationMode === 'text' ? (
-                 <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder={t("textPlaceholder")}
-                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition min-h-[150px] text-gray-200 placeholder-gray-500"
-                    rows={6}
-                    maxLength={40000}
-                />
+                 <>
+                    <textarea
+                        value={prompt}
+                        onChange={handlePromptChange}
+                        onPaste={handlePaste}
+                        placeholder={t("textPlaceholder")}
+                        className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition min-h-[150px] text-gray-200 placeholder-gray-500"
+                        rows={6}
+                        maxLength={MAX_TEXT_LENGTH}
+                    />
+                    <div className="text-right text-xs font-mono text-gray-400 mt-1">
+                        {prompt.length.toLocaleString()} / {MAX_TEXT_LENGTH.toLocaleString()}
+                    </div>
+                 </>
             ) : (
                 <>
                     <label htmlFor="file-input" className="w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400 transition">
                        <FileTextIcon className="w-8 h-8 text-slate-400" />
                        <span className="text-base font-semibold text-slate-300">{t("pdfUploadInstruction")}</span>
                     </label>
-                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)} />
+                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} />
                     <FileInputDisplay file={selectedFile} onClear={() => setSelectedFile(null)} icon={<FileTextIcon className="w-5 h-5 text-cyan-400" />} />
                 </>
             )}
