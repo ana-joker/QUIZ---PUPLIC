@@ -5,6 +5,10 @@ import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './u
 import { useSettings, useTranslation, useToast } from '../App';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure the PDF.js worker to enable text extraction in the browser.
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs';
 
 interface QuizCreatorProps {
   creationMode: 'text' | 'pdf';
@@ -37,6 +41,8 @@ const MAX_TEXT_LENGTH = 40000;
 const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated, onBackToChoice }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileTextContent, setFileTextContent] = useState<string | null>(null);
+  const [isParsingFile, setIsParsingFile] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imageUsage, setImageUsage] = useState<ImageUsage>('auto');
   const [isLoading, setIsLoading] = useState(false);
@@ -84,49 +90,69 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
       if (newText.length > MAX_TEXT_LENGTH) {
           addToast(t("promptTruncated", { count: MAX_TEXT_LENGTH.toLocaleString() }), 'warning');
-          // The actual truncation will be handled by the onChange event that follows paste
       }
   };
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
     if (!file) return;
 
     const MAX_PDF_SIZE_MB = 10;
-    const PDF_WARNING_THRESHOLD_MB = 5;
-
-    // Hard limit check
     if (file.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
         setError(t("pdfTooLargeError", { size: MAX_PDF_SIZE_MB }));
-        setSelectedFile(null); // Clear selection
+        setSelectedFile(null);
+        setFileTextContent(null);
         return;
     }
 
-    // Warning for potentially long content
-    if (file.size > PDF_WARNING_THRESHOLD_MB * 1024 * 1024) {
-        addToast(t("pdfContentWarning"), 'info');
-    }
-    
     setSelectedFile(file);
-    setError(null); // Clear previous errors
-    e.target.value = ''; // Allow re-selecting the same file
+    setError(null);
+    setIsParsingFile(true);
+
+    try {
+        let fullText = '';
+        if (file.type === 'application/pdf') {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                // A more robust way to join text items, ensuring spaces.
+                fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
+            }
+        } else { // Handle .txt and other text-based files
+            fullText = await file.text();
+        }
+
+        if (fullText.length > MAX_TEXT_LENGTH) {
+            setFileTextContent(fullText.substring(0, MAX_TEXT_LENGTH));
+            addToast(t("pdfContentTruncated", { count: MAX_TEXT_LENGTH.toLocaleString() }), 'warning');
+        } else {
+            setFileTextContent(fullText);
+        }
+    } catch (parseError) {
+        console.error("Error parsing file:", parseError);
+        setError("Failed to read the file. It might be corrupted or protected.");
+        setSelectedFile(null);
+        setFileTextContent(null);
+    } finally {
+        setIsParsingFile(false);
+        e.target.value = ''; // Allow re-selecting the same file
+    }
   };
 
+    const clearSelectedFile = () => {
+        setSelectedFile(null);
+        setFileTextContent(null);
+    };
+
   const handleGenerateQuiz = useCallback(async () => {
-    if (!prompt && !selectedFile && selectedImages.length === 0) {
+    const mainContent = creationMode === 'pdf' ? fileTextContent : prompt;
+    if (!mainContent && selectedImages.length === 0) {
       setError(t("inputError"));
       return;
     }
     
-    // The blocking prompt length error is removed, as truncation is now handled automatically.
-    
-    if (creationMode === 'pdf' && selectedFile) {
-        const MAX_PDF_SIZE_MB = 10;
-        if (selectedFile.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
-            setError(t("pdfTooLargeError", { size: MAX_PDF_SIZE_MB }));
-            return;
-        }
-    }
     const MAX_IMAGES = 5;
     if (selectedImages.length > MAX_IMAGES) {
         setError(t("tooManyImagesError", { count: MAX_IMAGES }));
@@ -187,8 +213,8 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
     try {
         const generatedQuiz = await generateQuizContent(
-            prompt, '', settings,
-            creationMode === 'pdf' ? selectedFile : null,
+            mainContent || '', '', settings,
+            null, // File object is not sent; its content is sent in the prompt
             selectedImages, imageUsage, onUploadProgress
         );
 
@@ -219,7 +245,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         setUploadProgress(0);
         setUploadSpeed(null);
     }
-  }, [prompt, settings, selectedFile, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast]);
+  }, [prompt, fileTextContent, settings, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -263,12 +289,18 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                  </>
             ) : (
                 <>
-                    <label htmlFor="file-input" className="w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400 transition">
-                       <FileTextIcon className="w-8 h-8 text-slate-400" />
-                       <span className="text-base font-semibold text-slate-300">{t("pdfUploadInstruction")}</span>
+                    <label htmlFor="file-input" className={`w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition ${isParsingFile ? 'cursor-wait' : 'cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400'}`}>
+                       {isParsingFile ? (
+                           <Loader2Icon className="w-8 h-8 text-slate-400 animate-spin" />
+                       ) : (
+                           <FileTextIcon className="w-8 h-8 text-slate-400" />
+                       )}
+                       <span className="text-base font-semibold text-slate-300">
+                           {isParsingFile ? t('analyzingPdf') : t("pdfUploadInstruction")}
+                        </span>
                     </label>
-                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} />
-                    <FileInputDisplay file={selectedFile} onClear={() => setSelectedFile(null)} icon={<FileTextIcon className="w-5 h-5 text-cyan-400" />} />
+                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} disabled={isParsingFile} />
+                    <FileInputDisplay file={selectedFile} onClear={clearSelectedFile} icon={<FileTextIcon className="w-5 h-5 text-cyan-400" />} />
                 </>
             )}
         </CardContent>
@@ -278,7 +310,10 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         <CardHeader>{t('step2ImageIntegration')}</CardHeader>
         <CardContent>
             <p className="text-sm text-gray-400 mb-4">{t('imageIntegrationDesc')}</p>
-            { !prompt && !selectedFile && selectedImages.length > 0 && 
+            { creationMode === 'text' && !prompt && selectedImages.length > 0 &&
+                <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
+            }
+            { creationMode === 'pdf' && !fileTextContent && selectedImages.length > 0 &&
                 <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
             }
             <label htmlFor="image-input" className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400 transition">
@@ -415,7 +450,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       <div className="mt-8">
         <button
           onClick={handleGenerateQuiz}
-          disabled={isLoading || (!prompt && !selectedFile && selectedImages.length === 0)}
+          disabled={isLoading || isParsingFile || (!(creationMode === 'pdf' ? fileTextContent : prompt) && selectedImages.length === 0)}
           className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
         >
           {isLoading ? (

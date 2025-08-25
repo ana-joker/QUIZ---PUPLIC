@@ -164,7 +164,8 @@ const translations = {
     "doubleClickInstruction": "To answer a question, click your chosen answer twice to confirm.",
     "uploadingFile": "Uploading File",
     "promptTruncated": "Text was truncated to the {count} character limit.",
-    "pdfContentWarning": "Note: The content of large PDFs may be truncated if it exceeds the text limit."
+    "pdfContentTruncated": "File content was too long. The quiz will be generated using the first {count} characters.",
+    "analyzingPdf": "Analyzing file..."
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -317,7 +318,8 @@ const translations = {
     "doubleClickInstruction": "للإجابة على السؤال، يرجى الضغط على إجابتك المختارة مرتين للتأكيد.",
     "uploadingFile": "جاري رفع الملف",
     "promptTruncated": "تم قص النص ليتوافق مع الحد الأقصى البالغ {count} حرفًا.",
-    "pdfContentWarning": "ملاحظة: قد يتم اقتطاع محتوى ملفات PDF الكبيرة. سيتم إنشاء الاختبار بناءً على الحد المسموح به من النص."
+    "pdfContentTruncated": "محتوى الملف كان طويلًا جدًا. سيتم إنشاء الاختبار باستخدام أول {count} حرف فقط.",
+    "analyzingPdf": "جاري تحليل الملف..."
   }
 };
 type TranslationKey = keyof typeof translations.en;
