@@ -5,7 +5,6 @@ import { Quiz } from '../types';
 import { useSettings, useTranslation } from '../App';
 import { saveQuizToIndexedDB, getQuizByIdFromIndexedDB } from '../services/indexedDbService';
 import { generateQuizHtml } from '../utils/quizHtmlGenerator';
-import { gradeShortAnswer } from '../services/clientGeminiService';
 
 interface QuizInterfaceProps {
     quiz: Quiz;
@@ -59,17 +58,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     case 'download-quiz':
                         handleDownloadHtml();
                         break;
-                    case 'grade-short-answer':
-                        const { question, correctAnswer, userAnswer, questionIndex } = event.data.payload;
-                        const isCorrect = await gradeShortAnswer(question, correctAnswer, userAnswer);
-                        const iframe = document.querySelector('iframe');
-                        if (iframe?.contentWindow) {
-                            iframe.contentWindow.postMessage({
-                                type: 'short-answer-graded',
-                                payload: { isCorrect, questionIndex }
-                            }, '*');
-                        }
-                        break;
                  }
             } else if (event.data === 'quiz-exit') {
                 onExit();
@@ -109,7 +97,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
             saveAsHtml: t('saveAsHtml'),
             doubleClickInstruction: t('doubleClickInstruction'),
             submitAnswer: t('submitAnswer'),
-            grading: t('grading'),
             correct: t('correct'),
             incorrect: t('incorrect'),
             correctAnswer: t('correctAnswer'),
@@ -317,7 +304,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                             const submitBtn = document.getElementById(\`short-answer-submit-\${index}\`);
                             inputEl.disabled = true;
                             submitBtn.disabled = true;
-                            submitBtn.textContent = translations.submitAnswer; // Reset text in case it was "Grading..."
                             inputEl.classList.add(isCorrect ? 'border-green-500' : 'border-red-500', 'ring-2', isCorrect ? 'ring-green-300' : 'ring-red-300');
                         } else { // MCQ types
                              const optionsContainer = document.querySelector('.options');
@@ -354,22 +340,13 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
 
                         if (!userAnswer.trim()) { return; }
 
-                        button.disabled = true;
-                        input.disabled = true;
-                        button.textContent = translations.grading;
+                        const q = scorableQuizData[questionIndex];
+                        const isCorrect = userAnswer.trim().toLowerCase() === String(q.correctAnswer).trim().toLowerCase();
 
                         userAnswers[questionIndex].answer = userAnswer;
-
-                        const q = scorableQuizData[questionIndex];
-                        window.parent.postMessage({
-                            type: 'grade-short-answer',
-                            payload: {
-                                question: q.question,
-                                correctAnswer: q.correctAnswer,
-                                userAnswer: userAnswer,
-                                questionIndex: questionIndex,
-                            }
-                        }, '*');
+                        userAnswers[questionIndex].isCorrect = isCorrect;
+                        
+                        showFeedback(questionIndex, isCorrect);
                     }
 
                     function handleOptionClick(e) {
@@ -534,16 +511,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
                         document.getElementById('basmaja-btn').addEventListener('click', () => { loadBasmajaContent(); showPage('basmaja'); });
                         
-                        window.addEventListener('message', (event) => {
-                            if (event.data?.type === 'short-answer-graded') {
-                                const { isCorrect, questionIndex } = event.data.payload;
-                                if(questionIndex === currentQuestionIndex) {
-                                    userAnswers[questionIndex].isCorrect = isCorrect;
-                                    showFeedback(questionIndex, isCorrect);
-                                }
-                            }
-                        });
-
                         showPage('landing');
                         applyCopyProtection();
                     }
