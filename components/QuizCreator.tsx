@@ -1,5 +1,6 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { Quiz } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './ui/Icons';
 import { useSettings, useTranslation, useToast } from '../App';
@@ -41,6 +42,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const [imageUsage, setImageUsage] = useState<ImageUsage>('auto');
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzingPdf, setIsAnalyzingPdf] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +51,11 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const { settings, setSettings } = useSettings();
   const { t, lang } = useTranslation();
   const { addToast } = useToast();
+  
+  useEffect(() => {
+    // Set workerSrc for pdf.js. This is required for it to work correctly.
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs';
+  }, []);
 
   useEffect(() => {
     const MAX_TOTAL_QUESTIONS = 50;
@@ -102,6 +109,38 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     // Warn user about potential truncation for larger files.
     if (file.size > 5 * 1024 * 1024) { // 5MB threshold for warning
         addToast(t("pdfContentWarning"), 'warning');
+    }
+
+    if (file.type === 'application/pdf') {
+        setIsAnalyzingPdf(true);
+        setError(null);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            let totalChars = 0;
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => 'str' in item ? item.str : '').join('');
+                totalChars += pageText.replace(/\s/g, '').length;
+            }
+            
+            const avgCharsPerPage = pdf.numPages > 0 ? totalChars / pdf.numPages : 0;
+            const CHARS_PER_PAGE_THRESHOLD = 100;
+
+            if (avgCharsPerPage < CHARS_PER_PAGE_THRESHOLD) {
+                if (!window.confirm(t("pdfScanWarning"))) {
+                    setIsAnalyzingPdf(false);
+                    return; // User cancelled, so we stop here.
+                }
+            }
+        } catch (pdfError) {
+            console.error("Error analyzing PDF:", pdfError);
+            // Fail open: if analysis fails, let the user proceed.
+        } finally {
+            setIsAnalyzingPdf(false);
+        }
     }
 
     setSelectedFile(file);
@@ -258,13 +297,20 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                  </>
             ) : (
                 <>
-                    <label htmlFor="file-input" className="w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400">
-                       <FileTextIcon className="w-8 h-8 text-slate-400" />
-                       <span className="text-base font-semibold text-slate-300">
-                           {t("pdfUploadInstruction")}
-                        </span>
+                    <label htmlFor="file-input" className={`w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition ${isAnalyzingPdf ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400'}`}>
+                       {isAnalyzingPdf ? (
+                           <>
+                                <Loader2Icon className="w-8 h-8 text-slate-400 animate-spin" />
+                                <span className="text-base font-semibold text-slate-300">{t("analyzingPdf")}</span>
+                           </>
+                       ) : (
+                           <>
+                                <FileTextIcon className="w-8 h-8 text-slate-400" />
+                                <span className="text-base font-semibold text-slate-300">{t("pdfUploadInstruction")}</span>
+                           </>
+                       )}
                     </label>
-                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} />
+                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} disabled={isAnalyzingPdf} />
                     <FileInputDisplay file={selectedFile} onClear={clearSelectedFile} icon={<FileTextIcon className="w-5 h-5 text-cyan-400" />} />
                 </>
             )}
@@ -415,7 +461,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       <div className="mt-8">
         <button
           onClick={handleGenerateQuiz}
-          disabled={isLoading || (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0)}
+          disabled={isLoading || isAnalyzingPdf || (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0)}
           className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
         >
           {isLoading ? (
