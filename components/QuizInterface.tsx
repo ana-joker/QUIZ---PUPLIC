@@ -5,6 +5,7 @@ import { Quiz } from '../types';
 import { useSettings, useTranslation } from '../App';
 import { saveQuizToIndexedDB, getQuizByIdFromIndexedDB } from '../services/indexedDbService';
 import { generateQuizHtml } from '../utils/quizHtmlGenerator';
+import { gradeShortAnswer } from '../services/clientGeminiService';
 
 interface QuizInterfaceProps {
     quiz: Quiz;
@@ -33,31 +34,43 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
     // Effect to listen for messages from the iframe
     useEffect(() => {
         const handleMessage = async (event: MessageEvent) => {
-            if (event.data && typeof event.data === 'object' && event.data.type === 'quiz-finished') {
-                if (!quiz.id) return;
-
-                const { score, total, percentage, timeTaken } = event.data.payload;
-                
-                try {
-                    const existingQuiz = await getQuizByIdFromIndexedDB(quiz.id);
-                    if (existingQuiz) {
-                        const updatedQuiz = {
-                            ...existingQuiz,
-                            score,
-                            total,
-                            percentage: `${percentage.toFixed(1)}%`,
-                            timeTaken: `${Math.floor(timeTaken / 60).toString().padStart(2, '0')}:${(timeTaken % 60).toString().padStart(2, '0')}`,
-                        };
-                        await saveQuizToIndexedDB(updatedQuiz);
-                    }
-                } catch (error) {
-                    console.error("Failed to update quiz in IndexedDB with results:", error);
-                }
-                
-                onExit();
-
-            } else if (event.data && event.data.type === 'download-quiz') {
-                handleDownloadHtml();
+            if (event.data && typeof event.data === 'object') {
+                 switch (event.data.type) {
+                    case 'quiz-finished':
+                        if (!quiz.id) return;
+                        const { score, total, percentage, timeTaken } = event.data.payload;
+                        try {
+                            const existingQuiz = await getQuizByIdFromIndexedDB(quiz.id);
+                            if (existingQuiz) {
+                                const updatedQuiz = {
+                                    ...existingQuiz,
+                                    score,
+                                    total,
+                                    percentage: `${percentage.toFixed(1)}%`,
+                                    timeTaken: `${Math.floor(timeTaken / 60).toString().padStart(2, '0')}:${(timeTaken % 60).toString().padStart(2, '0')}`,
+                                };
+                                await saveQuizToIndexedDB(updatedQuiz);
+                            }
+                        } catch (error) {
+                            console.error("Failed to update quiz in IndexedDB with results:", error);
+                        }
+                        onExit();
+                        break;
+                    case 'download-quiz':
+                        handleDownloadHtml();
+                        break;
+                    case 'grade-short-answer':
+                        const { question, correctAnswer, userAnswer, questionIndex } = event.data.payload;
+                        const isCorrect = await gradeShortAnswer(question, correctAnswer, userAnswer);
+                        const iframe = document.querySelector('iframe');
+                        if (iframe?.contentWindow) {
+                            iframe.contentWindow.postMessage({
+                                type: 'short-answer-graded',
+                                payload: { isCorrect, questionIndex }
+                            }, '*');
+                        }
+                        break;
+                 }
             } else if (event.data === 'quiz-exit') {
                 onExit();
             }
@@ -95,6 +108,11 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
             transformContentToQuiz: t('transformContentToQuiz'),
             saveAsHtml: t('saveAsHtml'),
             doubleClickInstruction: t('doubleClickInstruction'),
+            submitAnswer: t('submitAnswer'),
+            grading: t('grading'),
+            correct: t('correct'),
+            incorrect: t('incorrect'),
+            correctAnswer: t('correctAnswer'),
         });
 
         return `
@@ -179,7 +197,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     const selectedImageFiles = ${selectedImageFilesString};
                     const translations = ${translationsForScript};
                     const scorableQuizData = quizData.filter(q => !q.isFlawed);
-                    const userAnswers = new Array(scorableQuizData.length).fill(null);
+                    let userAnswers = scorableQuizData.map(() => ({ answer: null, isCorrect: null }));
                     let currentQuestionIndex = 0;
                     let pendingOptionIndex = null;
                     let quizStartTime = 0;
@@ -213,12 +231,12 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         if (!prevBtn || !nextBtn || !finishBtn) return;
                         
                         prevBtn.disabled = currentQuestionIndex === 0;
-                        nextBtn.disabled = userAnswers[currentQuestionIndex] === null;
+                        nextBtn.disabled = userAnswers[currentQuestionIndex].isCorrect === null;
 
                         if (currentQuestionIndex === scorableQuizData.length - 1) {
                             nextBtn.classList.add('hidden');
                             finishBtn.classList.remove('hidden');
-                            finishBtn.disabled = userAnswers[currentQuestionIndex] === null;
+                            finishBtn.disabled = userAnswers[currentQuestionIndex].isCorrect === null;
                         } else {
                             nextBtn.classList.remove('hidden');
                             finishBtn.classList.add('hidden');
@@ -239,50 +257,119 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         }
 
                         let caseHTML = '';
-                        if (q.caseDescription && (index === 0 || q.caseDescription !== scorableQuizData[index - 1].caseDescription)) {
+                        if (q.caseDescription && (index === 0 || q.caseDescription !== scorableQuizData[index - 1]?.caseDescription)) {
                             caseHTML = \`<div class="case-card"><h3 class="title">\${translations.caseScenario}</h3><p class="body">\${q.caseDescription}</p></div>\`;
                         }
                         
-                        const optionsHTML = q.options.map((opt, optIndex) => \`<label class="option-label block" for="q\${index}o\${optIndex}"><input type="radio" id="q\${index}o\${optIndex}" name="q\${index}" value="\${optIndex}" class="hidden"> \${String.fromCharCode(65 + optIndex)}. \${opt}</label>\`).join('');
-                        
-                        quizContentContainer.innerHTML = \`\${imageHTML}\${caseHTML}<div class="question-card p-6 rounded-lg"><p class="font-bold text-base sm:text-lg mb-4"> \${q.question}</p><div class="options space-y-3" data-question-index="\${index}">\${optionsHTML}</div><div id="feedback-area-\${index}" class="mt-4"></div></div>\`;
-                        
-                        const optionsElement = quizContentContainer.querySelector('.options');
-                        pendingOptionIndex = null; // Reset for new question
-
-                        if (userAnswers[index] !== null) {
-                            const radio = quizContentContainer.querySelector(\`input[value="\${userAnswers[index]}"]\`);
-                            if(radio) radio.checked = true;
-                            showFeedback(index);
-                        } else {
-                            optionsElement.querySelectorAll('.option-label').forEach(label => label.addEventListener('click', handleOptionClick));
+                        let questionTypeHTML = '';
+                        switch(q.questionType) {
+                            case 'ShortAnswer':
+                                questionTypeHTML = \`
+                                    <div class="short-answer-container" data-question-index="\${index}">
+                                        <input type="text" id="short-answer-input-\${index}" class="w-full p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500" placeholder="${lang === 'ar' ? 'اكتب إجابتك هنا...' : 'Type your answer here...'}">
+                                        <button id="short-answer-submit-\${index}" class="btn-primary w-full mt-4 font-bold py-3 px-4 rounded-lg">\${translations.submitAnswer}</button>
+                                    </div>
+                                    <div id="feedback-area-\${index}" class="mt-4"></div>
+                                \`;
+                                break;
+                            case 'MCQ':
+                            case 'TrueFalse':
+                            default:
+                                const optionsHTML = q.options.map((opt, optIndex) => \`<label class="option-label block" for="q\${index}o\${optIndex}"><input type="radio" id="q\${index}o\${optIndex}" name="q\${index}" value="\${optIndex}" class="hidden"> \${String.fromCharCode(65 + optIndex)}. \${opt}</label>\`).join('');
+                                questionTypeHTML = \`<div class="options space-y-3" data-question-index="\${index}">\${optionsHTML}</div><div id="feedback-area-\${index}" class="mt-4"></div>\`;
+                                break;
                         }
+
+                        quizContentContainer.innerHTML = \`\${imageHTML}\${caseHTML}<div class="question-card p-6 rounded-lg"><p class="font-bold text-base sm:text-lg mb-4"> \${q.question}</p>\${questionTypeHTML}</div>\`;
+                        
+                        // Add event listeners AFTER innerHTML is set
+                        const userAnswered = userAnswers[index].answer !== null;
+                        
+                        if (q.questionType === 'ShortAnswer') {
+                            const inputEl = document.getElementById(\`short-answer-input-\${index}\`);
+                            const submitBtn = document.getElementById(\`short-answer-submit-\${index}\`);
+                            if (userAnswered) {
+                                inputEl.value = userAnswers[index].answer;
+                                showFeedback(index, userAnswers[index].isCorrect);
+                            } else {
+                                submitBtn.addEventListener('click', handleShortAnswerSubmit);
+                            }
+                        } else { // MCQ types
+                            if (userAnswered) {
+                                const radio = quizContentContainer.querySelector(\`input[value="\${userAnswers[index].answer}"]\`);
+                                if(radio) radio.checked = true;
+                                showFeedback(index, userAnswers[index].isCorrect);
+                            } else {
+                                quizContentContainer.querySelectorAll('.option-label').forEach(label => label.addEventListener('click', handleOptionClick));
+                            }
+                        }
+
                         updateNavigationButtons();
                         updateProgressBar();
                     }
 
-                    function showFeedback(index) {
+                    function showFeedback(index, isCorrect) {
                         const q = scorableQuizData[index];
-                        const userAnswer = userAnswers[index];
-                        const isCorrect = userAnswer === q.correctAnswerIndex;
                         const feedbackArea = document.getElementById(\`feedback-area-\${index}\`);
-                        const optionsContainer = document.querySelector('.options');
                         
-                        optionsContainer.querySelectorAll('input').forEach(input => input.disabled = true);
-                        
-                        const selectedLabel = optionsContainer.querySelector(\`label[for="q\${index}o\${userAnswer}"]\`);
-                        
-                        if (isCorrect) {
-                            if (selectedLabel) selectedLabel.classList.add('correct-answer-feedback');
-                        } else {
-                            if (selectedLabel) selectedLabel.classList.add('incorrect-answer-feedback');
-                            const correctLabel = optionsContainer.querySelector(\`label[for="q\${index}o\${q.correctAnswerIndex}"]\`);
-                            if (correctLabel) correctLabel.classList.add('correct-answer-feedback');
+                        if (q.questionType === 'ShortAnswer') {
+                            const inputEl = document.getElementById(\`short-answer-input-\${index}\`);
+                            const submitBtn = document.getElementById(\`short-answer-submit-\${index}\`);
+                            inputEl.disabled = true;
+                            submitBtn.disabled = true;
+                            submitBtn.textContent = translations.submitAnswer; // Reset text in case it was "Grading..."
+                            inputEl.classList.add(isCorrect ? 'border-green-500' : 'border-red-500', 'ring-2', isCorrect ? 'ring-green-300' : 'ring-red-300');
+                        } else { // MCQ types
+                             const optionsContainer = document.querySelector('.options');
+                             optionsContainer.querySelectorAll('input').forEach(input => input.disabled = true);
+                             const userAnswer = userAnswers[index].answer;
+                             const selectedLabel = optionsContainer.querySelector(\`label[for="q\${index}o\${userAnswer}"]\`);
+                             if (isCorrect) {
+                                 if (selectedLabel) selectedLabel.classList.add('correct-answer-feedback');
+                             } else {
+                                 if (selectedLabel) selectedLabel.classList.add('incorrect-answer-feedback');
+                                 const correctLabel = optionsContainer.querySelector(\`label[for="q\${index}o\${q.correctAnswerIndex}"]\`);
+                                 if (correctLabel) correctLabel.classList.add('correct-answer-feedback');
+                             }
                         }
-                        
+
                         const explanationHTML = q.explanation ? \`<div class="explanation-box"><h4 class="title">\${translations.explanation}</h4><p class="body">\${q.explanation.replace(/\\n/g, '<br/>')}</p></div>\` : '';
-                        if(feedbackArea) feedbackArea.innerHTML = explanationHTML;
+                        const correctAnswerHTML = !isCorrect && q.questionType === 'ShortAnswer' ? \`<div class="mb-2 p-2 bg-green-100 dark:bg-green-900/50 rounded-md"><strong>\${translations.correctAnswer}:</strong> \${q.correctAnswer}</div>\` : '';
+
+                        if(feedbackArea) {
+                            feedbackArea.innerHTML = \`
+                                <div class="\${isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} font-bold mb-2">\${isCorrect ? translations.correct : translations.incorrect}</div>
+                                \${correctAnswerHTML}
+                                \${explanationHTML}
+                            \`;
+                        }
                         updateNavigationButtons();
+                    }
+                    
+                    function handleShortAnswerSubmit(e) {
+                        const button = e.currentTarget;
+                        const questionIndex = parseInt(button.id.replace('short-answer-submit-', ''));
+                        const input = document.getElementById(\`short-answer-input-\${questionIndex}\`);
+                        const userAnswer = input.value;
+
+                        if (!userAnswer.trim()) { return; }
+
+                        button.disabled = true;
+                        input.disabled = true;
+                        button.textContent = translations.grading;
+
+                        userAnswers[questionIndex].answer = userAnswer;
+
+                        const q = scorableQuizData[questionIndex];
+                        window.parent.postMessage({
+                            type: 'grade-short-answer',
+                            payload: {
+                                question: q.question,
+                                correctAnswer: q.correctAnswer,
+                                userAnswer: userAnswer,
+                                questionIndex: questionIndex,
+                            }
+                        }, '*');
                     }
 
                     function handleOptionClick(e) {
@@ -298,8 +385,10 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                             pendingOptionIndex = null;
                             label.classList.remove('pending');
                             radio.checked = true;
-                            userAnswers[currentQuestionIndex] = clickedOptionIndex;
-                            showFeedback(currentQuestionIndex);
+                            const questionIndex = currentQuestionIndex;
+                            userAnswers[questionIndex].answer = clickedOptionIndex;
+                            userAnswers[questionIndex].isCorrect = clickedOptionIndex === scorableQuizData[questionIndex].correctAnswerIndex;
+                            showFeedback(questionIndex, userAnswers[questionIndex].isCorrect);
                         } else {
                             // First click or changing selection
                             pendingOptionIndex = clickedOptionIndex;
@@ -311,7 +400,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     function finishQuiz() {
                         clearInterval(timerInterval);
                         const timeTaken = Math.floor((Date.now() - quizStartTime) / 1000);
-                        const score = scorableQuizData.reduce((s, q, i) => s + (userAnswers[i] === q.correctAnswerIndex ? 1 : 0), 0);
+                        const score = userAnswers.reduce((s, a) => s + (a.isCorrect ? 1 : 0), 0);
                         const total = scorableQuizData.length;
                         const percentage = total > 0 ? (score / total) * 100 : 0;
                         
@@ -328,8 +417,18 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
 
                     function loadReviewContent() {
                         const content = scorableQuizData.map((q, index) => {
-                            const isCorrect = userAnswers[index] === q.correctAnswerIndex;
-                            const optionsHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'correct-answer' : ''} \${!isCorrect && optIndex === userAnswers[index] ? 'incorrect-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
+                            const { answer, isCorrect } = userAnswers[index];
+                            let answerHTML = '';
+                            if (q.questionType === 'ShortAnswer') {
+                                answerHTML = \`<div class="p-2 border rounded-md \${isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'} dark:\${isCorrect ? 'border-green-600 bg-green-900/30' : 'border-red-600 bg-red-900/30'}">Your answer: \${answer}</div>\`;
+                                if (!isCorrect) {
+                                    answerHTML += \`<div class="p-2 mt-2 border rounded-md border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-900/30">Correct answer: \${q.correctAnswer}</div>\`;
+                                }
+                            } else {
+                                answerHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'correct-answer' : ''} \${!isCorrect && optIndex === answer ? 'incorrect-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
+                                answerHTML = \`<div class="options space-y-3">\${answerHTML}</div>\`;
+                            }
+                            
                             const explanationHTML = q.explanation ? \`<div class="explanation-box mt-4"><h4 class="title">\${translations.explanation}</h4><p class="body">\${q.explanation.replace(/\\n/g, '<br/>')}</p></div>\` : '';
                             
                             let imageHTML = '';
@@ -338,7 +437,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                             }
 
                             let caseHTML = '';
-                            if (q.caseDescription && (index === 0 || q.caseDescription !== scorableQuizData[index - 1].caseDescription)) {
+                            if (q.caseDescription && (index === 0 || q.caseDescription !== scorableQuizData[index - 1]?.caseDescription)) {
                                 caseHTML = \`<div class="case-card"><h3 class="title">\${translations.caseScenario}</h3><p class="body">\${q.caseDescription}</p></div>\`;
                             }
 
@@ -347,7 +446,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                                         \${imageHTML}
                                         <div class="question-card p-6 rounded-lg review">
                                             <p class="font-bold text-lg mb-2">\${index + 1}. \${q.question}</p>
-                                            <div class="options space-y-3">\${optionsHTML}</div>
+                                            \${answerHTML}
                                             \${explanationHTML}
                                         </div>
                                     </div>\`;
@@ -359,7 +458,12 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                     
                     function loadBasmajaContent() {
                         const content = quizData.map((q, index) => {
-                             const optionsHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'basmaja-correct-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
+                             let optionsOrAnswerHTML = '';
+                             if (q.questionType === 'ShortAnswer') {
+                                optionsOrAnswerHTML = \`<div class="p-3 basmaja-correct-answer rounded-md">\${q.correctAnswer}</div>\`;
+                             } else {
+                                optionsOrAnswerHTML = q.options.map((opt, optIndex) => \`<div class="option-label block \${optIndex === q.correctAnswerIndex ? 'basmaja-correct-answer' : ''}">\${String.fromCharCode(65 + optIndex)}. \${opt}</div>\`).join('');
+                             }
                              const explanationHTML = q.explanation ? \`<div class="explanation-box mt-4"><h4 class="title">\${translations.explanation}</h4><p class="body">\${q.explanation.replace(/\\n/g, '<br/>')}</p></div>\` : '';
                              const flawedTag = q.isFlawed ? \`<div class="flawed-tag">Flawed Question</div>\` : '';
                              
@@ -379,7 +483,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                                         <div class="question-card p-6 rounded-lg mb-6">
                                             \${flawedTag}
                                             <p class="font-bold text-lg mb-4">\${index + 1}. \${q.question}</p>
-                                            <div class="options space-y-3">\${optionsHTML}</div>
+                                            <div class="options space-y-3">\${optionsOrAnswerHTML}</div>
                                             \${explanationHTML}
                                         </div>
                                      </div>\`;
@@ -393,23 +497,12 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         const watermark = '\\n\\n---\\nتم إنشاء هذا المحتوى بواسطة تطبيق مولد الاختبارات الذكي - AHMED AL3NANY';
 
                         protectedElements.forEach(element => {
-                            // الطبقة الأولى: منع القص بالكامل
-                            element.addEventListener('cut', (e) => {
-                                e.preventDefault();
-                            });
-                            
-                            // الطبقة الثانية: اعتراض النسخ وتعديل المحتوى
+                            element.addEventListener('cut', (e) => e.preventDefault());
                             element.addEventListener('copy', (e) => {
                                 const selection = window.getSelection();
-                                // تأكد من وجود حافظة و نص محدد
                                 if (!selection || !e.clipboardData) return;
-                                
                                 const selectedText = selection.toString();
-                                const watermarkedText = selectedText + watermark;
-
-                                // ضع النص المعدل في الحافظة
-                                e.clipboardData.setData('text/plain', watermarkedText);
-                                // امنع السلوك الافتراضي للنسخ (نسخ النص الأصلي)
+                                e.clipboardData.setData('text/plain', selectedText + watermark);
                                 e.preventDefault();
                             });
                         });
@@ -417,7 +510,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
 
                     function startQuiz() {
                         if (scorableQuizData.length === 0) { alert(translations.noValidQuestions); return; }
-                        userAnswers.fill(null);
+                        userAnswers = scorableQuizData.map(() => ({ answer: null, isCorrect: null }));
                         currentQuestionIndex = 0;
                         pages.quiz.innerHTML = \`<div id="quiz-header" class="flex justify-between items-center mb-4 text-sm"><span id="question-counter"></span><span id="quiz-timer"></span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-6"><div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width:0%"></div></div><div id="quiz-content"></div><div class="flex flex-col sm:flex-row justify-between gap-4 mt-6"><button id="prev-question-btn" class="btn-secondary font-bold py-3 px-4 rounded-lg flex-1 font-tajawal">\${translations.previousQuestion}</button><button id="next-question-btn" class="btn-primary font-bold py-3 px-4 rounded-lg flex-1 font-tajawal">\${translations.nextQuestion}</button><button id="finish-quiz-btn" class="btn-primary font-bold py-3 px-4 rounded-lg flex-1 hidden font-tajawal">\${translations.finishQuiz}</button></div>\`;
                         document.getElementById('prev-question-btn').addEventListener('click', () => displayQuestion(currentQuestionIndex - 1));
@@ -440,8 +533,19 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                             </div>\`;
                         document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
                         document.getElementById('basmaja-btn').addEventListener('click', () => { loadBasmajaContent(); showPage('basmaja'); });
+                        
+                        window.addEventListener('message', (event) => {
+                            if (event.data?.type === 'short-answer-graded') {
+                                const { isCorrect, questionIndex } = event.data.payload;
+                                if(questionIndex === currentQuestionIndex) {
+                                    userAnswers[questionIndex].isCorrect = isCorrect;
+                                    showFeedback(questionIndex, isCorrect);
+                                }
+                            }
+                        });
+
                         showPage('landing');
-                        applyCopyProtection(); // تطبيق الحماية عند بدء التشغيل
+                        applyCopyProtection();
                     }
 
                     init();
