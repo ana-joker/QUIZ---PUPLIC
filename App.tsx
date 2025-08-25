@@ -150,7 +150,6 @@ const translations = {
     "tooManyQuestionsError": "You requested too many questions. Maximum {count} questions allowed.",
     "noQuestionsRequestedError": "Please request at least one question.",
     "tooManyImagesError": "You can upload a maximum of {count} images.",
-    "pdfLimitInfo": "Max file size: {size}MB. (Backend will check page count)",
     "imageLimitInfo": "Max {count} images. (Individual file size limits apply)",
     "remainingQuestionsInfo": "Remaining questions: {count} / 50",
     "totalQuestionsLimitInfo": "Total questions (MCQs + Cases * Q/Case + Image Qs) must not exceed {count}.",
@@ -165,7 +164,10 @@ const translations = {
     "uploadingFile": "Uploading File",
     "promptTruncated": "Text was truncated to the {count} character limit.",
     "pdfContentTruncated": "File content was too long. The quiz will be generated using the first {count} characters.",
-    "analyzingPdf": "Analyzing file..."
+    "analyzingPdf": "Analyzing file...",
+    "pdfPasswordProtected": "This PDF is password-protected and cannot be processed.",
+    "pdfInvalid": "The file appears to be corrupted or is not a valid PDF.",
+    "pdfReadError": "Failed to read the file. It might be incompatible or corrupted."
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -304,7 +306,6 @@ const translations = {
     "tooManyQuestionsError": "لقد طلبت عددًا كبيرًا جدًا من الأسئلة. الحد الأقصى {count} سؤال مسموح به.",
     "noQuestionsRequestedError": "يرجى طلب سؤال واحد على الأقل.",
     "tooManyImagesError": "يمكنك رفع 5 صور كحد أقصى.",
-    "pdfLimitInfo": "الحد الأقصى لحجم الملف: {size} ميجابايت. (الخادم سيتأكد من عدد الصفحات)",
     "imageLimitInfo": "الحد الأقصى: {count} صور. (تطبق حدود حجم ملفات فردية)",
     "remainingQuestionsInfo": "الأسئلة المتبقية: {count} / 50",
     "totalQuestionsLimitInfo": "إجمالي الأسئلة (متعددة الخيارات + الحالات * أسئلة/حالة + أسئلة الصور) يجب ألا يتجاوز {count}.",
@@ -319,7 +320,10 @@ const translations = {
     "uploadingFile": "جاري رفع الملف",
     "promptTruncated": "تم قص النص ليتوافق مع الحد الأقصى البالغ {count} حرفًا.",
     "pdfContentTruncated": "محتوى الملف كان طويلًا جدًا. سيتم إنشاء الاختبار باستخدام أول {count} حرف فقط.",
-    "analyzingPdf": "جاري تحليل الملف..."
+    "analyzingPdf": "جاري تحليل الملف...",
+    "pdfPasswordProtected": "هذا الملف محمي بكلمة مرور ولا يمكن معالجته.",
+    "pdfInvalid": "يبدو أن الملف تالف أو ليس ملف PDF صالحًا.",
+    "pdfReadError": "فشل في قراءة الملف. قد يكون غير متوافق أو تالفًا."
   }
 };
 type TranslationKey = keyof typeof translations.en;

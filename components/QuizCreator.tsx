@@ -5,10 +5,10 @@ import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './u
 import { useSettings, useTranslation, useToast } from '../App';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
-import * as pdfjsLib from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 
 // Configure the PDF.js worker to enable text extraction in the browser.
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs';
+GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs';
 
 interface QuizCreatorProps {
   creationMode: 'text' | 'pdf';
@@ -113,11 +113,10 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         let fullText = '';
         if (file.type === 'application/pdf') {
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const pdf = await getDocument({ data: arrayBuffer }).promise;
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                // A more robust way to join text items, ensuring spaces.
                 fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
             }
         } else { // Handle .txt and other text-based files
@@ -130,9 +129,15 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         } else {
             setFileTextContent(fullText);
         }
-    } catch (parseError) {
+    } catch (parseError: any) {
         console.error("Error parsing file:", parseError);
-        setError("Failed to read the file. It might be corrupted or protected.");
+        let userErrorMessage = t("pdfReadError");
+        if (parseError.name === 'PasswordException') {
+            userErrorMessage = t("pdfPasswordProtected");
+        } else if (parseError.name === 'InvalidPDFException') {
+            userErrorMessage = t("pdfInvalid");
+        }
+        setError(userErrorMessage);
         setSelectedFile(null);
         setFileTextContent(null);
     } finally {
