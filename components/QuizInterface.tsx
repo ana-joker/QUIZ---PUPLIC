@@ -100,8 +100,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
             correct: t('correct'),
             incorrect: t('incorrect'),
             correctAnswer: t('correctAnswer'),
-            validating: t('validating'),
-            validationError: t('validationError'),
         });
 
         return `
@@ -334,7 +332,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
                         updateNavigationButtons();
                     }
                     
-                    async function handleShortAnswerSubmit(e) {
+                    function handleShortAnswerSubmit(e) {
                         const button = e.currentTarget;
                         const questionIndex = parseInt(button.id.replace('short-answer-submit-', ''));
                         const input = document.getElementById(\`short-answer-input-\${questionIndex}\`);
@@ -342,48 +340,13 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ quiz, onExit }) => {
 
                         if (!userAnswer) { return; }
 
-                        button.disabled = true;
-                        input.disabled = true;
-                        const originalButtonText = button.innerHTML;
-                        button.innerHTML = \`<span class="animate-pulse">\${translations.validating}</span>\`;
-
-                        try {
-                            const q = scorableQuizData[questionIndex];
-                            
-                            const response = await fetch('https://quiz-time-backend-production.up.railway.app/validate-answer', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    question: q.question,
-                                    userAnswer: userAnswer,
-                                    correctAnswer: q.correctAnswer,
-                                    explanationLanguage: '${settings.explanationLanguage || 'English'}'
-                                })
-                            });
-
-                            if (!response.ok) {
-                                const errorText = await response.text();
-                                throw new Error(errorText || 'Validation service failed.');
-                            }
-
-                            const result = await response.json(); // Expected: { isCorrect: boolean, feedback: string }
-                            
-                            userAnswers[questionIndex].answer = userAnswer;
-                            userAnswers[questionIndex].isCorrect = result.isCorrect;
-                            
-                            if (result.feedback && typeof result.feedback === 'string' && result.feedback.trim()) {
-                                scorableQuizData[questionIndex].explanation = result.feedback;
-                            }
-
-                            showFeedback(questionIndex, result.isCorrect);
-
-                        } catch (error) {
-                            console.error('Answer validation failed:', error);
-                            alert(translations.validationError);
-                            button.disabled = false;
-                            input.disabled = false;
-                            button.innerHTML = originalButtonText;
-                        }
+                        const q = scorableQuizData[questionIndex];
+                        const isCorrect = userAnswer.toLowerCase() === String(q.correctAnswer).toLowerCase();
+                        
+                        userAnswers[questionIndex].answer = userAnswer;
+                        userAnswers[questionIndex].isCorrect = isCorrect;
+                        
+                        showFeedback(questionIndex, isCorrect);
                     }
 
                     function handleOptionClick(e) {
