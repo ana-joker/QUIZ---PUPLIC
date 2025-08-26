@@ -399,8 +399,6 @@ const defaultSettings: AppSettings = {
     additionalInstructions: '',
     quizLanguage: 'English',
     explanationLanguage: 'English',
-    knowledgeLevel: 'Intermediate',
-    learningGoal: 'Apply Information',
     questionTypes: ['MCQ'], // Default to MCQ as per new design
 };
 

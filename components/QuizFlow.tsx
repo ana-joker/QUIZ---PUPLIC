@@ -25,10 +25,6 @@ const QuizFlow: React.FC<QuizFlowProps> = ({ initialQuiz, quizToResume, onExit }
     }
     setIsLoading(false);
 
-    // The new interface is self-contained and doesn't use localStorage for state.
-    // Clear any old state.
-    localStorage.removeItem('interactiveQuizState');
-
   }, [initialQuiz, quizToResume, onExit]);
 
 

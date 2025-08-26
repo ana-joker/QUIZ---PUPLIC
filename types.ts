@@ -1,3 +1,17 @@
+export interface UserAnswer {
+  userAnswer: any;
+  isCorrect: boolean;
+}
+
+export interface QuizState {
+  quizTitle: string;
+  quizData: Question[];
+  userAnswers: UserAnswer[];
+  currentQuestionIndex: number;
+  startTime: number | null;
+  selectedImageFiles?: string[];
+}
+
 export interface Quiz {
   id?: string; // Unique ID for IndexedDB
   quizTitle: string;
@@ -27,29 +41,6 @@ export interface Question {
   isFlawed?: boolean;
 }
 
-export interface UserAnswer {
-  questionIndex: number;
-  userAnswer: any;
-  isCorrect: boolean;
-}
-
-export interface QuizState extends Quiz {
-  userAnswers: UserAnswer[];
-  currentQuestionIndex: number;
-  startTime?: number;
-}
-
-export interface QuizHistoryEntry {
-  title: string;
-  score: number;
-  total: number;
-  percentage: string;
-  date: string;
-  mode: string;
-  quizData: Quiz;
-  timeTaken: string;
-}
-
 export interface RecallItem {
   id: string;
   questionData: Question;
@@ -71,9 +62,6 @@ export interface AppSettings {
   // New simplified settings
   additionalInstructions: string;
 
-  // Kept for potential future use or more complex settings panels
-  knowledgeLevel: string;
-  learningGoal: string;
   questionTypes: string[];
 
   // --- General App Settings ---

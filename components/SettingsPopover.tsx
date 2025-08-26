@@ -128,34 +128,6 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
             </div>
         </div>
 
-        <div className="space-y-4">
-            <h4 className="font-tajawal font-bold text-pink-600 dark:text-pink-500 text-base">{t("learningContext")}</h4>
-            <div>
-                <label className="font-medium text-gray-700 dark:text-gray-300 block mb-2">{t("knowledgeLevel")}</label>
-                <div className="space-y-1">
-                    {[{value: 'Beginner', label: t('beginner')}, {value: 'Intermediate', label: t('intermediate')}, {value: 'Advanced', label: t('advanced')}].map(opt => (
-                         <label key={opt.value} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
-                            <span className="text-gray-800 dark:text-gray-200 font-tajawal">{opt.label}</span>
-                            <input type="radio" name="knowledgeLevel" value={opt.value} checked={localSettings.knowledgeLevel === opt.value} onChange={e => handleLocalSettingChange('knowledgeLevel', e.target.value)}
-                                className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-400 dark:border-gray-500 bg-transparent" />
-                        </label>
-                    ))}
-                </div>
-            </div>
-            <div>
-                <label className="font-medium text-gray-700 dark:text-gray-300 block mb-2">{t("learningGoal")}</label>
-                <div className="space-y-1">
-                    {[{value: 'Understand Concepts', label: t('understandConcepts')}, {value: 'Apply Information', label: t('applyInformation')}, {value: 'Learn', label: t('learn')}].map(opt => (
-                        <label key={opt.value} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
-                            <span className="text-gray-800 dark:text-gray-200 font-tajawal">{opt.label}</span>
-                            <input type="radio" name="learningGoal" value={opt.value} checked={localSettings.learningGoal === opt.value} onChange={e => handleLocalSettingChange('learningGoal', e.target.value)}
-                                className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-400 dark:border-gray-500 bg-transparent" />
-                        </label>
-                    ))}
-                </div>
-            </div>
-        </div>
-
          <div>
             <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsQuestionTypes")}</label>
             <div className="mt-2 grid grid-cols-2 gap-3">
