@@ -73,33 +73,7 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
 
   const allQuestionTypes = ['MCQ', 'TrueFalse', 'ShortAnswer', 'Ordering', 'Matching'];
 
-  const GeneralSettings = () => (
-    <div className="space-y-6 text-sm">
-      <div>
-        <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsTheme")}</label>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-            <button onClick={() => handleLocalSettingChange('theme', 'light')} className={`py-2 rounded-md ${localSettings.theme === 'light' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsLightTheme")}</button>
-            <button onClick={() => handleLocalSettingChange('theme', 'dark')} className={`py-2 rounded-md ${localSettings.theme === 'dark' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsDarkTheme")}</button>
-        </div>
-      </div>
-      <div>
-        <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsLanguage")}</label>
-        <select value={localSettings.uiLanguage} onChange={e => handleLocalSettingChange('uiLanguage', e.target.value)}
-          className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-2 focus:ring-teal-500">
-            <option value="en">English</option>
-            <option value="ar">العربية</option>
-        </select>
-      </div>
-       <div>
-        <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsFontSize")}</label>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-            <button onClick={() => handleLocalSettingChange('fontSize', 'small')} className={`py-2 rounded-md ${localSettings.fontSize === 'small' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsSmall")}</button>
-            <button onClick={() => handleLocalSettingChange('fontSize', 'medium')} className={`py-2 rounded-md ${localSettings.fontSize === 'medium' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsMedium")}</button>
-            <button onClick={() => handleLocalSettingChange('fontSize', 'large')} className={`py-2 rounded-md ${localSettings.fontSize === 'large' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsLarge")}</button>
-        </div>
-      </div>
-    </div>
-  );
+  
 
     const GeneralSettings = () => (
     <div className="space-y-6 text-sm">
