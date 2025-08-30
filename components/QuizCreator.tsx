@@ -6,6 +6,8 @@ import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon } from './u
 import { useSettings, useTranslation, useToast } from '../App';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 interface QuizCreatorProps {
   creationMode: 'text' | 'pdf';
@@ -46,31 +48,47 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [remainingQuestions, setRemainingQuestions] = useState(50);
+  const [remainingQuestions, setRemainingQuestions] = useState(USER_MAX_QUESTIONS);
 
   const { settings, setSettings } = useSettings();
   const { t, lang } = useTranslation();
   const { addToast } = useToast();
-  
+  const { user } = useAuth();
+
+  const isGuest = !user;
+  const maxQuestions = isGuest ? GUEST_MAX_QUESTIONS : USER_MAX_QUESTIONS;
+
   useEffect(() => {
-    // Set workerSrc for pdf.js. This is required for it to work correctly.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs`;
   }, []);
 
   useEffect(() => {
-    const MAX_TOTAL_QUESTIONS = 50;
     const currentNumMCQs = parseInt(settings.numMCQs, 10) || 0;
     const currentNumCases = parseInt(settings.numCases, 10) || 0;
     const currentQPerCase = parseInt(settings.questionsPerCase, 10) || 0;
     const currentNumImageQuestions = parseInt(settings.numImageQuestions, 10) || 0;
 
     const totalRequested = currentNumMCQs + (currentNumCases * currentQPerCase) + currentNumImageQuestions;
-    const remaining = MAX_TOTAL_QUESTIONS - totalRequested;
+    const remaining = maxQuestions - totalRequested;
     setRemainingQuestions(remaining < 0 ? 0 : remaining);
-  }, [settings.numMCQs, settings.numCases, settings.questionsPerCase, settings.numImageQuestions]);
-
+  }, [settings.numMCQs, settings.numCases, settings.questionsPerCase, settings.numImageQuestions, maxQuestions]);
 
   const handleSettingChange = (field: keyof typeof settings, value: any) => {
+    if (isGuest) {
+        const totalMCQs = field === 'numMCQs' ? (parseInt(value, 10) || 0) : (parseInt(settings.numMCQs, 10) || 0);
+        const totalCases = field === 'numCases' ? (parseInt(value, 10) || 0) : (parseInt(settings.numCases, 10) || 0);
+        const qPerCase = field === 'questionsPerCase' ? (parseInt(value, 10) || 0) : (parseInt(settings.questionsPerCase, 10) || 0);
+        const totalImageQuestions = field === 'numImageQuestions' ? (parseInt(value, 10) || 0) : (parseInt(settings.numImageQuestions, 10) || 0);
+        
+        const calculatedTotalQuestions = totalMCQs + (totalCases * qPerCase) + totalImageQuestions;
+
+        if (calculatedTotalQuestions > GUEST_MAX_QUESTIONS) {
+            setError(t('guestQuestionLimitError', { count: GUEST_MAX_QUESTIONS }));
+            return;
+        } else {
+            setError(null);
+        }
+    }
     setSettings(prev => ({ ...prev, [field]: value }));
   };
   
@@ -95,8 +113,9 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   };
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isGuest) return;
     const file = e.target.files ? e.target.files[0] : null;
-    e.target.value = ''; // Allow re-selecting the same file
+    e.target.value = '';
     if (!file) return;
 
     const MAX_PDF_SIZE_MB = 10;
@@ -106,8 +125,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         return;
     }
     
-    // Warn user about potential truncation for larger files.
-    if (file.size > 5 * 1024 * 1024) { // 5MB threshold for warning
+    if (file.size > 5 * 1024 * 1024) {
         addToast(t("pdfContentWarning"), 'warning');
     }
 
@@ -132,12 +150,11 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             if (avgCharsPerPage < CHARS_PER_PAGE_THRESHOLD) {
                 if (!window.confirm(t("pdfScanWarning"))) {
                     setIsAnalyzingPdf(false);
-                    return; // User cancelled, so we stop here.
+                    return;
                 }
             }
         } catch (pdfError) {
             console.error("Error analyzing PDF:", pdfError);
-            // Fail open: if analysis fails, let the user proceed.
         } finally {
             setIsAnalyzingPdf(false);
         }
@@ -147,9 +164,9 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     setError(null);
   };
 
-    const clearSelectedFile = () => {
-        setSelectedFile(null);
-    };
+  const clearSelectedFile = () => {
+      setSelectedFile(null);
+  };
 
   const handleGenerateQuiz = useCallback(async () => {
     if (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0) {
@@ -162,17 +179,19 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         setError(t("tooManyImagesError", { count: MAX_IMAGES }));
         return;
     }
+
     const totalMCQs = parseInt(settings.numMCQs, 10) || 0;
     const totalCases = parseInt(settings.numCases, 10) || 0;
     const qPerCase = parseInt(settings.questionsPerCase, 10) || 0;
     const totalImageQuestions = parseInt(settings.numImageQuestions, 10) || 0;
     const calculatedTotalQuestions = totalMCQs + (totalCases * qPerCase) + totalImageQuestions;
+
     if (calculatedTotalQuestions <= 0) {
         setError(t("noQuestionsRequestedError"));
         return;
     }
-    if (calculatedTotalQuestions > 50) {
-        setError(t("tooManyQuestionsError", { count: 50 }));
+    if (calculatedTotalQuestions > maxQuestions) {
+        setError(t(isGuest ? 'guestQuestionLimitError' : "tooManyQuestionsError", { count: maxQuestions }));
         return;
     }
 
@@ -218,7 +237,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
     try {
         const generatedQuiz = await generateQuizContent(
             creationMode === 'text' ? prompt : '',
-            '', // Subject is unused
+            '',
             settings,
             creationMode === 'pdf' ? selectedFile : null,
             selectedImages, 
@@ -228,15 +247,14 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
 
         let base64Images: string[] = [];
         if (selectedImages.length > 0) {
-            const imagePromises = selectedImages.map(imageFile => {
+            base64Images = await Promise.all(selectedImages.map(imageFile => {
                 return new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onloadend = () => resolve(reader.result as string);
                     reader.onerror = reject;
                     reader.readAsDataURL(imageFile);
                 });
-            });
-            base64Images = await Promise.all(imagePromises);
+            }));
         }
         
         const quizWithImages = { ...generatedQuiz, selectedImageFiles: base64Images };
@@ -253,7 +271,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         setUploadProgress(0);
         setUploadSpeed(null);
     }
-  }, [prompt, selectedFile, settings, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast]);
+  }, [prompt, selectedFile, settings, selectedImages, onQuizGenerated, t, creationMode, imageUsage, isUploading, addToast, isGuest, maxQuestions]);
 
   const FileInputDisplay = ({ file, onClear, icon }: { file: File | null; onClear: () => void; icon: React.ReactNode }) => {
     if (!file) return null;
@@ -271,13 +289,33 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
   };
   
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8 pb-12">
       <button onClick={onBackToChoice} className="flex items-center gap-2 text-cyan-300 hover:text-cyan-100 transition-colors font-semibold">
           <ArrowRightIcon className={`w-5 h-5 ${lang === 'ar' ? '' : 'rotate-180'}`} />
           {t("backToSelection")}
       </button>
 
-      <Card>
+      {isGuest ? (
+        <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-400/30 rounded-2xl shadow-lg text-center relative overflow-hidden">
+            <div className="absolute top-2 right-2 bg-cyan-500/20 text-cyan-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+                <User className="w-3 h-3" />
+                <span>{t('guestMode')}</span>
+            </div>
+            <h4 className="text-xl font-bold text-cyan-300 mb-2">{t('guestTitle')}</h4>
+            <p className="text-gray-400 max-w-md mx-auto mb-4">{t('guestSubtitle', { count: GUEST_MAX_QUESTIONS })}</p>
+            <Link to="/register" className="bg-cyan-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-cyan-600 transition-all duration-300 inline-flex items-center gap-2 shadow-lg shadow-cyan-500/20">
+                <Sparkles className="w-5 h-5" />
+                {t('unlockFullPower')}
+            </Link>
+        </div>
+      ) : (
+        <div className="p-4 bg-slate-800/40 backdrop-blur-md border border-slate-600/50 rounded-2xl shadow-lg text-center flex items-center justify-center gap-3">
+          <UserCheck className="w-6 h-6 text-cyan-300" />
+          <p className="text-lg text-cyan-300">{t('welcomeBack')}, {user.name}!</p>
+        </div>
+      )}
+
+      <Card disabled={isGuest && creationMode === 'pdf'}>
         <CardHeader>{creationMode === 'text' ? t('step1Text') : t('step1Pdf')}</CardHeader>
         <CardContent>
             {creationMode === 'text' ? (
@@ -297,7 +335,9 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                  </>
             ) : (
                 <>
-                    <label htmlFor="file-input" className={`w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition ${isAnalyzingPdf ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400'}`}>
+                    <label htmlFor="file-input" className={`w-full flex items-center justify-center gap-3 px-4 py-10 border-2 border-dashed border-slate-600 rounded-lg transition ${isAnalyzingPdf || isGuest ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400'}`}
+                        title={isGuest ? t('featureForRegisteredUsers') : ''}
+                    >
                        {isAnalyzingPdf ? (
                            <>
                                 <Loader2Icon className="w-8 h-8 text-slate-400 animate-spin" />
@@ -310,28 +350,26 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                            </>
                        )}
                     </label>
-                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} disabled={isAnalyzingPdf} />
+                    <input id="file-input" type="file" className="hidden" accept=".pdf,.txt" onChange={handleFileChange} disabled={isAnalyzingPdf || isGuest} />
                     <FileInputDisplay file={selectedFile} onClear={clearSelectedFile} icon={<FileTextIcon className="w-5 h-5 text-cyan-400" />} />
+                    {isGuest && <p className="text-xs text-cyan-300 text-center mt-2">{t('pdfUploadGuestInfo')}</p>}
                 </>
             )}
         </CardContent>
       </Card>
       
-      <Card>
+      <Card disabled={isGuest}>
         <CardHeader>{t('step2ImageIntegration')}</CardHeader>
         <CardContent>
             <p className="text-sm text-gray-400 mb-4">{t('imageIntegrationDesc')}</p>
-            { creationMode === 'text' && !prompt && selectedImages.length > 0 &&
-                <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
-            }
-            { creationMode === 'pdf' && !selectedFile && selectedImages.length > 0 &&
-                <p className="text-sm text-cyan-300 mb-4 font-semibold">{t('imageOnlyInfo')}</p>
-            }
-            <label htmlFor="image-input" className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400 transition">
+            <label htmlFor="image-input" className={`w-full flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-slate-600 rounded-lg ${isGuest ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-700/50 hover:border-cyan-400'} transition`}
+              title={isGuest ? t('featureForRegisteredUsers') : ''}
+            >
               <ImageIcon className="w-8 h-8 text-slate-400" />
               <span className="text-base font-semibold text-slate-300">{t("addImage")} (up to 5)</span>
             </label>
             <input id="image-input" type="file" className="hidden" accept="image/*" multiple onChange={(e) => {
+                if (isGuest) return;
                 if (e.target.files) {
                     const files = Array.from(e.target.files);
                     const combined = [...selectedImages, ...files];
@@ -343,7 +381,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                     }
                     e.target.value = '';
                 }
-            }} />
+            }} disabled={isGuest} />
 
             {selectedImages.map((file, index) => (
                 <div key={index} className="mt-4 flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-700">
@@ -358,11 +396,11 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             ))}
 
             {selectedImages.length > 0 && (
-                <div className="mt-6">
+                <div className={`mt-6 ${isGuest ? 'opacity-50' : ''}`}>
                     <label className="font-medium text-gray-300 block mb-3">{t('imageUsageTitle')}</label>
                     <div className="space-y-3">
                         {(['auto', 'link', 'about'] as ImageUsage[]).map((usage) => (
-                           <label key={usage} className="flex items-start gap-3 cursor-pointer bg-slate-900/50 p-3 rounded-lg border border-slate-700 hover:border-cyan-400 transition-colors">
+                           <label key={usage} className={`flex items-start gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700 ${isGuest ? 'cursor-not-allowed' : 'hover:border-cyan-400 cursor-pointer'} transition-colors`}>
                              <input
                                type="radio"
                                name="imageUsage"
@@ -370,6 +408,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                                checked={imageUsage === usage}
                                onChange={() => setImageUsage(usage)}
                                className="w-4 h-4 mt-1 bg-slate-700 border-slate-500 text-cyan-500 focus:ring-cyan-500 accent-cyan-500 shrink-0"
+                               disabled={isGuest}
                              />
                              <span className="text-gray-300 text-sm">{t(`imageUsage${usage.charAt(0).toUpperCase() + usage.slice(1)}` as any)}</span>
                            </label>
@@ -377,6 +416,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
                     </div>
                 </div>
             )}
+             {isGuest && <p className="text-xs text-cyan-300 text-center mt-4">{t('imageUploadGuestInfo')}</p>}
         </CardContent>
       </Card>
 
@@ -384,38 +424,45 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
         <CardHeader>{t('step3Settings')}</CardHeader>
         <CardContent>
           <p className="text-sm text-gray-400 mb-4 text-center">
-            {t("remainingQuestionsInfo", { count: remainingQuestions < 0 ? 0 : remainingQuestions })}
+            {isGuest 
+              ? t("guestRemainingQuestionsInfo", { count: remainingQuestions < 0 ? 0 : remainingQuestions, max: GUEST_MAX_QUESTIONS })
+              : t("remainingQuestionsInfo", { count: remainingQuestions < 0 ? 0 : remainingQuestions })
+            }
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6 ${isGuest ? 'opacity-60' : ''}`}>
             <div className="space-y-2">
               <label htmlFor="num-mcqs" className="font-medium text-gray-300">{t("numMCQs")}</label>
               <input id="num-mcqs" type="number" min="0"
-                max={50 - ((parseInt(settings.numCases, 10) || 0) * (parseInt(settings.questionsPerCase, 10) || 0)) - (parseInt(settings.numImageQuestions, 10) || 0)}
+                max={maxQuestions - ((parseInt(settings.numCases, 10) || 0) * (parseInt(settings.questionsPerCase, 10) || 0)) - (parseInt(settings.numImageQuestions, 10) || 0)}
                 value={settings.numMCQs} onChange={e => handleSettingChange('numMCQs', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
+                className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 disabled:cursor-not-allowed"
+                disabled={isGuest && (parseInt(settings.numMCQs, 10) || 0) >= GUEST_MAX_QUESTIONS}
               />
             </div>
             <div className="space-y-2">
               <label htmlFor="num-cases" className="font-medium text-gray-300">{t("numCases")}</label>
               <input id="num-cases" type="number" min="0" 
-                max={Math.floor((50 - (parseInt(settings.numMCQs, 10) || 0) - (parseInt(settings.numImageQuestions, 10) || 0)) / (parseInt(settings.questionsPerCase, 10) || 1))}
+                max={Math.floor((maxQuestions - (parseInt(settings.numMCQs, 10) || 0) - (parseInt(settings.numImageQuestions, 10) || 0)) / (parseInt(settings.questionsPerCase, 10) || 1))}
                 value={settings.numCases} onChange={e => handleSettingChange('numCases', e.target.value)}
-                 className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
+                 className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 disabled:cursor-not-allowed"
+                 disabled={isGuest}
               />
             </div>
              <div className="space-y-2">
               <label htmlFor="questions-per-case" className="font-medium text-gray-300">{t("questionsPerCase")}</label>
               <input id="questions-per-case" type="number" min="0" max="5" value={settings.questionsPerCase} onChange={e => handleSettingChange('questionsPerCase', e.target.value)}
-                 className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
+                 className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 disabled:cursor-not-allowed"
+                 disabled={isGuest}
               />
             </div>
              {selectedImages.length > 0 && (
               <div className="space-y-2">
                 <label htmlFor="num-image-questions" className="font-medium text-gray-300">{t("numImageQuestions")}</label>
                 <input id="num-image-questions" type="number" min="0" 
-                  max={50 - (parseInt(settings.numMCQs, 10) || 0) - ((parseInt(settings.numCases, 10) || 0) * (parseInt(settings.questionsPerCase, 10) || 0))}
+                  max={maxQuestions - (parseInt(settings.numMCQs, 10) || 0) - ((parseInt(settings.numCases, 10) || 0) * (parseInt(settings.questionsPerCase, 10) || 0))}
                   value={settings.numImageQuestions} onChange={e => handleSettingChange('numImageQuestions', e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400"
+                  className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-400 disabled:cursor-not-allowed"
+                  disabled={isGuest}
                 />
               </div>
             )}
@@ -461,8 +508,9 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
       <div className="mt-8">
         <button
           onClick={handleGenerateQuiz}
-          disabled={isLoading || isAnalyzingPdf || (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0)}
+          disabled={isLoading || isAnalyzingPdf || (isGuest && creationMode === 'pdf') || (!(creationMode === 'pdf' ? selectedFile : prompt) && selectedImages.length === 0)}
           className="w-full bg-cyan-500 text-white font-bold text-lg py-4 px-6 rounded-lg hover:bg-cyan-600 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-1"
+          title={isGuest && creationMode === 'pdf' ? t('featureForRegisteredUsers') : ''}
         >
           {isLoading ? (
              <div className="flex items-center gap-3">
@@ -473,6 +521,12 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ creationMode, onQuizGenerated
             t("generateNow")
           )}
         </button>
+        {isGuest && (
+          <p className="text-center text-sm text-gray-400 mt-4">
+            {t('saveQuizzesPrompt')}{' '}
+            <Link to="/register" className="text-cyan-400 hover:underline font-semibold">{t('createAnAccount')}</Link>.
+          </p>
+        )}
       </div>
     </div>
   );

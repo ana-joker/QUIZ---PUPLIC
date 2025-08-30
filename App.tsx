@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import QuizCreator from './components/QuizCreator';
 import QuizFlow from './components/QuizFlow';
@@ -9,6 +8,11 @@ import SettingsPopover from './components/SettingsPopover';
 import { Quiz, RecallItem, AppSettings } from './types';
 import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
 import { SettingsIcon, HistoryIcon, BrainCircuitIcon, XIcon } from './components/ui/Icons';
+import { AuthProvider } from './context/AuthContext';
+import { Routes, Route } from 'react-router-dom';
+import Login from './pages/Login';
+import ManageDevices from './pages/ManageDevices';
+import PrivateRoute from './components/PrivateRoute';
 
 
 // --- I18N ---
@@ -56,7 +60,7 @@ const translations = {
     "retakeQuiz": "Retake Quiz",
     "newQuiz": "New Quiz",
     "reviewAnswersTitle": "Review Answers",
-    "reviewPerformance": "Review your performance for the quiz: \"{title}\"",
+    "reviewPerformance": "Review your performance for the quiz: \"{title}\",",
     "notAnswered": "Not Answered",
     "yourAnswer": "Your answer:",
     "correctAnswer": "Correct answer:",
@@ -210,7 +214,7 @@ const translations = {
     "retakeQuiz": "إعادة الاختبار",
     "newQuiz": "اختبار جديد",
     "reviewAnswersTitle": "مراجعة الإجابات",
-    "reviewPerformance": "راجع أداءك في اختبار: \"{title}\"",
+    "reviewPerformance": "راجع أداءك في اختبار: \"{title}\",",
     "notAnswered": "لم تتم الإجابة",
     "yourAnswer": "إجابتك:",
     "correctAnswer": "الإجابة الصحيحة:",
@@ -318,8 +322,8 @@ const translations = {
     "uploadingFile": "جاري رفع الملف",
     "promptTruncated": "تم قص النص ليتوافق مع الحد الأقصى البالغ {count} حرفًا.",
     "pdfContentWarning": "ملاحظة: بالنسبة للملفات الكبيرة، قد يتم اقتطاع المحتوى بواسطة الخادم إذا تجاوز حد النص.",
-    "pdfScanWarning": "يبدو أن ملف PDF هذا يتكون من صور بدون نص قابل للتحديد، مما قد يؤدي إلى ضعف جودة الاختبار. للحصول على أفضل النتائج، يرجى استخدام ملف PDF يحتوي على نصوص.\n\nهل ترغب في المتابعة على أي حال؟",
-    "analyzingPdf": "جاري تحليل ملف PDF..."
+    "pdfScanWarning": "This PDF appears to be made of images without selectable text, which can lead to poor quiz quality. For best results, use a text-based PDF.\n\nDo you want to continue anyway?",
+    "analyzingPdf": "Analyzing PDF..."
   }
 };
 type TranslationKey = keyof typeof translations.en;
@@ -584,7 +588,13 @@ const App: React.FC = () => {
     return (
         <SettingsProvider>
             <ToastProvider>
-                 <AppContent />
+                <AuthProvider>
+                    <Routes>
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/manage-devices" element={<PrivateRoute><ManageDevices /></PrivateRoute>} />
+                        <Route path="/*" element={<AppContent />} />
+                    </Routes>
+                </AuthProvider>
             </ToastProvider>
         </SettingsProvider>
     );

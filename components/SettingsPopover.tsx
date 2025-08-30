@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSettings, useTranslation } from '../App';
 import { AppSettings } from '../types';
 import { XIcon } from './ui/Icons';
+import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface SettingsPopoverProps {
   isOpen: boolean;
@@ -13,7 +15,9 @@ interface SettingsPopoverProps {
 const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) => {
   const { settings, setSettings } = useSettings();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'quiz' | 'general'>('general');
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'quiz' | 'general' | 'account'>('general');
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
 
   // When the popover is opened, reset the local state to match the global context.
@@ -61,6 +65,12 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
     handleLocalSettingChange('questionTypes', newTypes);
   };
   
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    onClose();
+  };
+
   const allQuestionTypes = ['MCQ', 'TrueFalse', 'ShortAnswer', 'Ordering', 'Matching'];
 
   const GeneralSettings = () => (
@@ -88,6 +98,40 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
             <button onClick={() => handleLocalSettingChange('fontSize', 'large')} className={`py-2 rounded-md ${localSettings.fontSize === 'large' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsLarge")}</button>
         </div>
       </div>
+    </div>
+  );
+
+    const GeneralSettings = () => (
+    <div className="space-y-6 text-sm">
+      <div>
+        <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsTheme")}</label>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+            <button onClick={() => handleLocalSettingChange('theme', 'light')} className={`py-2 rounded-md ${localSettings.theme === 'light' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsLightTheme")}</button>
+            <button onClick={() => handleLocalSettingChange('theme', 'dark')} className={`py-2 rounded-md ${localSettings.theme === 'dark' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsDarkTheme")}</button>
+        </div>
+      </div>
+      <div>
+        <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsLanguage")}</label>
+        <select value={localSettings.uiLanguage} onChange={e => handleLocalSettingChange('uiLanguage', e.target.value)}
+          className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-2 focus:ring-teal-500">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+        </select>
+      </div>
+       <div>
+        <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsFontSize")}</label>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+            <button onClick={() => handleLocalSettingChange('fontSize', 'small')} className={`py-2 rounded-md ${localSettings.fontSize === 'small' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsSmall")}</button>
+            <button onClick={() => handleLocalSettingChange('fontSize', 'medium')} className={`py-2 rounded-md ${localSettings.fontSize === 'medium' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsMedium")}</button>
+            <button onClick={() => handleLocalSettingChange('fontSize', 'large')} className={`py-2 rounded-md ${localSettings.fontSize === 'large' ? 'bg-teal-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{t("settingsLarge")}</button>
+        </div>
+      </div>
+      {!user && (
+        <div className="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <Link to="/login" onClick={onClose} className="block w-full text-center py-2 px-4 rounded-md text-white bg-teal-600 hover:bg-teal-700">Login</Link>
+            <Link to="/register" onClick={onClose} className="block w-full text-center py-2 px-4 rounded-md text-teal-600 border border-teal-600 hover:bg-teal-50">Register</Link>
+        </div>
+      )}
     </div>
   );
 
@@ -162,6 +206,21 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
     </div>
   );
 
+  const AccountSettings = () => (
+    <div className="space-y-4 text-sm">
+        <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <p className="font-semibold text-gray-800 dark:text-gray-200">Hi, {user.name}</p>
+        </div>
+        <div className="space-y-2">
+            <Link to="/manage-devices" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Manage Devices</Link>
+            <Link to="/my-usage" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">My Quota</Link>
+        </div>
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button onClick={handleLogout} className="w-full py-2 px-4 rounded-md text-white bg-red-600 hover:bg-red-700">Logout</button>
+        </div>
+    </div>
+  );
+
   return (
     <>
       <div onClick={handleSaveAndClose} aria-hidden="true" className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
@@ -177,17 +236,24 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
 
               <main className="flex-grow overflow-y-auto">
                   <div className="border-b border-gray-200 dark:border-gray-700">
-                      <div className="grid grid-cols-2">
+                      <div className={`grid ${user ? 'grid-cols-3' : 'grid-cols-2'}`}>
                            <button onClick={() => setActiveTab('general')} className={`py-3 text-sm font-semibold ${activeTab === 'general' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
                               {t("settingsGeneral")}
                           </button>
                           <button onClick={() => setActiveTab('quiz')} className={`py-3 text-sm font-semibold ${activeTab === 'quiz' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
                               {t("settingsQuiz")}
                           </button>
+                          {user && (
+                            <button onClick={() => setActiveTab('account')} className={`py-3 text-sm font-semibold ${activeTab === 'account' ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                                Account
+                            </button>
+                          )}
                       </div>
                   </div>
                   <div className="p-6">
-                      {activeTab === 'general' ? <GeneralSettings /> : <QuizSettings />}
+                      {activeTab === 'general' && <GeneralSettings />}
+                      {activeTab === 'quiz' && <QuizSettings />}
+                      {activeTab === 'account' && user && <AccountSettings />}
                   </div>
               </main>
               
