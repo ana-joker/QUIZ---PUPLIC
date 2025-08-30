@@ -11,6 +11,7 @@ import HistoryPage from './components/HistoryPage';
 import RecallPage from './components/RecallPage';
 import SettingsPage from './pages/SettingsPage';
 import ManageDevices from './pages/ManageDevices';
+import MyUsage from './pages/MyUsage';
 import QuizFlow from './components/QuizFlow';
 
 import Dashboard from "./pages/Dashboard";
@@ -174,7 +175,21 @@ const translations = {
     "promptTruncated": "Text was truncated to the {count} character limit.",
     "pdfContentWarning": "Note: For large files, content may be truncated by the server if it exceeds the text limit.",
     "pdfScanWarning": "This PDF appears to be made of images without selectable text, which can lead to poor quiz quality. For best results, use a text-based PDF.\n\nDo you want to continue anyway?",
-    "analyzingPdf": "Analyzing PDF..."
+    "analyzingPdf": "Analyzing PDF...",
+    "trialEndsOn": "Trial ends on {date}",
+    "guestQuestionsRemaining": "Guest questions remaining: {count}",
+    "registerNowPrompt": "Register now to unlock unlimited quizzes!",
+    "login": "Login",
+    "register": "Register",
+    "myUsageTitle": "My Usage",
+    "accountDetails": "Account Details",
+    "planType": "Plan Type",
+    "questionsToday": "Questions Today",
+    "quotaResets": "Quota Resets",
+    "trialEnds": "Trial Ends",
+    "loadingUserData": "Loading user data...",
+    "upgradeToPremium": "Upgrade to Premium",
+    "joinCourse": "Join Course"
   },
   ar: {
     "aiQuizGenerator": "مولد الاختبارات الذكي",
@@ -328,10 +343,24 @@ const translations = {
     "promptTruncated": "تم قص النص ليتوافق مع الحد الأقصى البالغ {count} حرفًا.",
     "pdfContentWarning": "ملاحظة: بالنسبة للملفات الكبيرة، قد يتم اقتطاع المحتوى بواسطة الخادم إذا تجاوز حد النص.",
     "pdfScanWarning": "This PDF appears to be made of images without selectable text, which can lead to poor quiz quality. For best results, use a text-based PDF.\n\nDo you want to continue anyway?",
-    "analyzingPdf": "Analyzing PDF..."
+    "analyzingPdf": "Analyzing PDF...",
+    "trialEndsOn": "تنتهي الفترة التجريبية في {date}",
+    "guestQuestionsRemaining": "الأسئلة المتبقية للضيف: {count}",
+    "registerNowPrompt": "سجل الآن لفتح اختبارات غير محدودة!",
+    "login": "تسجيل الدخول",
+    "register": "تسجيل",
+    "myUsageTitle": "استخدامي",
+    "accountDetails": "تفاصيل الحساب",
+    "planType": "نوع الخطة",
+    "questionsToday": "أسئلة اليوم",
+    "quotaResets": "إعادة تعيين الكوتا",
+    "trialEnds": "انتهاء الفترة التجريبية",
+    "loadingUserData": "جاري تحميل بيانات المستخدم...",
+    "upgradeToPremium": "الترقية إلى بريميوم",
+    "joinCourse": "الانضمام إلى دورة"
   }
 };
-type TranslationKey = keyof typeof translations.en;
+export type TranslationKey = keyof typeof translations.en;
 
 // --- TOAST NOTIFICATION SYSTEM ---
 type Toast = {
@@ -368,7 +397,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {children}
             <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-4 space-y-2 z-50">
                 {toasts.map(toast => (
-                    <div key={toast.id} className="toast-animation bg-slate-800/80 dark:bg-slate-900/80 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-3">
+                    <div key={toast.id} className={`toast-animation bg-slate-800/80 dark:bg-slate-900/80 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-3`}>
                         <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'warning' ? 'bg-amber-500' : 'bg-cyan-500'}`}> 
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
@@ -497,6 +526,7 @@ const App: React.FC = () => {
                     <Route path="/recall" element={<RecallPage onBack={handleBackToCreator} dueRecallItems={[]} />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/manage-devices" element={<PrivateRoute><ManageDevices /></PrivateRoute>} />
+                    <Route path="/my-usage" element={<PrivateRoute><MyUsage /></PrivateRoute>} />
                     <Route path="/quiz" element={<QuizFlow initialQuiz={activeQuiz} quizToResume={quizToResume} onExit={handleBackToCreator} />} />
                     <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 </Routes>

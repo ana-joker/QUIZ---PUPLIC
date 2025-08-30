@@ -50,7 +50,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ quizState, onBack }) => {
           if (userAnswer && userAnswer.userAnswer !== null) {
               if (Array.isArray(userAnswer.userAnswer)) {
                    if (q.questionType === 'Matching') {
-                    userAnswerDisplay = userAnswer.userAnswer.map((p: any) => `${p.prompt} ↔️ ${p.answer}`).join(', ');
+                    userAnswerDisplay = userAnswer.userAnswer.map(p => `${p.prompt} ↔️ ${p.answer}`).join(', ');
                    } else {
                     userAnswerDisplay = userAnswer.userAnswer.join(' → ');
                    }

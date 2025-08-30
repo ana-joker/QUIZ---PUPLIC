@@ -5,7 +5,7 @@ import { useTranslation } from '../App';
 
 interface QuizPageProps {
   quizState: QuizState;
-  onAnswerSubmit: (questionIndex: number, userAnswer: any, isCorrect: boolean) => void;
+  onAnswerSubmit: (questionIndex: number, userAnswer: string | string[] | { prompt: string; answer: string }[], isCorrect: boolean) => void;
   onNextQuestion: () => void;
   onFinishQuiz: () => void;
 }

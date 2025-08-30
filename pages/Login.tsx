@@ -36,7 +36,7 @@ const Login = () => {
         throw new Error(data.message || 'Login failed.');
       }
       if (data.token) {
-        login(data.token, data.user);
+        login(data.token, data.user, deviceId as string);
       } else {
         throw new Error('No token received after login.');
       }
@@ -71,7 +71,7 @@ const Login = () => {
       }
 
       if (data.token) {
-        login(data.token, data.user);
+        login(data.token, data.user, deviceId as string);
       } else {
         throw new Error('No token received after Google login.');
       }
@@ -124,7 +124,7 @@ const Login = () => {
           <div className="flex-grow border-t border-slate-600"></div>
         </div>
 
-        <div className="w-full flex justify-center">
+        <div className={`w-full flex justify-center ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
           <GoogleLogin
             onSuccess={handleGoogle}
             onError={() => {
@@ -135,7 +135,6 @@ const Login = () => {
             size="large"
             text="continue_with"
             width="300"
-            disabled={loading}
           />
         </div>
 

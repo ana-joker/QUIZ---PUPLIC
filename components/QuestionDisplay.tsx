@@ -5,7 +5,7 @@ import { useTranslation } from '../App';
 
 interface QuestionDisplayProps {
   question: Question;
-  onSubmit: (userAnswer: any) => void;
+  onSubmit: (userAnswer: string | string[] | { prompt: string; answer: string }[]) => void;
   isSubmitted: boolean;
   userAnswer: UserAnswer | null;
 }

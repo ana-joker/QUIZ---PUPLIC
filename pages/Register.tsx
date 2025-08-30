@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { v4 as uuidv4 } from 'uuid';
 
 const Register = () => {
-  const { register } = useAuth(); // Assuming register function exists in AuthContext
+  const { register, login } = useAuth(); // Assuming register function exists in AuthContext
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,21 +31,7 @@ const Register = () => {
       return;
     }
     try {
-      // Placeholder for API call
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, deviceId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed.');
-      }
-      if (data.token) {
-        register(data.token, data.user);
-      } else {
-        throw new Error('No token received after registration.');
-      }
+      await register(form.name, form.email, form.password, deviceId as string);
     } catch (err: any) {
       console.error("Registration Failed:", err);
       setError(err.message || 'Registration failed. Please try again.');
@@ -78,7 +64,7 @@ const Register = () => {
       }
 
       if (data.token) {
-        register(data.token, data.user);
+        login(data.token, data.user, deviceId as string);
       } else {
         throw new Error('No token received after Google registration.');
       }
@@ -145,7 +131,7 @@ const Register = () => {
           <div className="flex-grow border-t border-slate-600"></div>
         </div>
 
-        <div className="w-full flex justify-center">
+        <div className={`w-full flex justify-center ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
           <GoogleLogin
             onSuccess={handleGoogle}
             onError={() => {
@@ -156,7 +142,6 @@ const Register = () => {
             size="large"
             text="continue_with"
             width="300"
-            disabled={loading}
           />
         </div>
 

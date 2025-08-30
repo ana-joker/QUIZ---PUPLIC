@@ -18,7 +18,7 @@ const SettingsPage: React.FC = () => {
     navigate('/'); // Go back to home after saving
   }, [localSettings, setSettings, navigate]);
 
-  const handleLocalSettingChange = (field: keyof AppSettings, value: any) => {
+  const handleLocalSettingChange = <T extends keyof AppSettings>(field: T, value: AppSettings[T]) => {
     setLocalSettings(prev => ({ ...prev, [field]: value }));
   };
 

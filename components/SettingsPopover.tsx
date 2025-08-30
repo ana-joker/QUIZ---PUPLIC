@@ -54,7 +54,7 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
     };
   }, [isOpen, handleSaveAndClose]);
     
-  const handleLocalSettingChange = (field: keyof AppSettings, value: any) => {
+  const handleLocalSettingChange = <T extends keyof AppSettings>(field: T, value: AppSettings[T]) => {
     setLocalSettings(prev => ({ ...prev, [field]: value }));
   };
   
@@ -86,7 +86,7 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
       </div>
       <div>
         <label className="font-medium text-gray-700 dark:text-gray-300">{t("settingsLanguage")}</label>
-        <select value={localSettings.uiLanguage} onChange={e => handleLocalSettingChange('uiLanguage', e.target.value)}
+        <select value={localSettings.uiLanguage} onChange={e => handleLocalSettingChange('uiLanguage', e.target.value as 'ar' | 'en')}
           className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-2 focus:ring-teal-500">
             <option value="en">English</option>
             <option value="ar">العربية</option>
@@ -184,10 +184,23 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
     <div className="space-y-4 text-sm">
         <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <p className="font-semibold text-gray-800 dark:text-gray-200">Hi, {user.name}</p>
+            <p className="text-gray-600 dark:text-gray-400">Plan: {user.planType}</p>
+            <p className="text-gray-600 dark:text-gray-400">Questions Today: {user.currentQuota} / {user.maxQuota}</p>
+            {user.quotaResetDate && (
+                <p className="text-gray-600 dark:text-gray-400">Quota Resets: {new Date(user.quotaResetDate).toLocaleDateString()}</p>
+            )}
+            {user.isTrialActive && user.trialEndDate && (
+                <p className="text-yellow-600 dark:text-yellow-400">Trial Ends: {new Date(user.trialEndDate).toLocaleDateString()}</p>
+            )}
         </div>
         <div className="space-y-2">
             <Link to="/manage-devices" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Manage Devices</Link>
-            <Link to="/my-usage" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">My Quota</Link>
+            <Link to="/my-usage" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">My Usage</Link>
+            {(user.planType === 'free' || user.planType === 'guest') && (
+                <button onClick={() => { /* Navigate to upgrade page */ onClose(); }} className="w-full py-2 px-4 rounded-md text-white bg-blue-600 hover:bg-blue-700">Upgrade to Premium</button>
+            )}
+            {/* Future: Join Course Button */}
+            {/* <button onClick={() => { /* Navigate to join course page */ /* onClose(); }} className="w-full py-2 px-4 rounded-md text-white bg-green-600 hover:bg-green-700">Join Course</button> */}
         </div>
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <button onClick={handleLogout} className="w-full py-2 px-4 rounded-md text-white bg-red-600 hover:bg-red-700">Logout</button>

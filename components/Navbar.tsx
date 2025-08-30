@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation, TranslationKey } from '../App';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -39,6 +41,14 @@ const Navbar = () => {
         <div className="hidden md:flex items-center space-x-4">
           {user ? (
             <div className="relative">
+              <span className="text-sm text-gray-400 mr-4">
+                {t('remainingQuestionsInfo', { current: user.currentQuota, total: user.maxQuota })}
+                {user.isTrialActive && (
+                  <span className="ml-2 text-yellow-400">
+                    ({t('trialEndsOn', { date: new Date(user.trialEndDate).toLocaleDateString() })})
+                  </span>
+                )}
+              </span>
               <button
                 onClick={toggleDropdown}
                 className="flex items-center space-x-2 focus:outline-none"
@@ -89,17 +99,21 @@ const Navbar = () => {
             </div>
           ) : (
             <>
+              <span className="text-sm text-gray-400 mr-4">
+                {t('guestQuestionsRemaining', { current: user?.currentQuota || 0, total: user?.maxQuota || 0 })}
+                <p className="text-xs text-gray-500 mt-1">{t('registerNowPrompt')}</p>
+              </span>
               <Link
                 to="/login"
                 className="px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-700 transition-colors duration-200"
               >
-                Login
+                {t('login')}
               </Link>
               <Link
                 to="/register"
-                className="px-4 py-2 rounded-md border border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white transition-colors duration-200"
+                className="px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-700 transition-colors duration-200"
               >
-                Register
+                {t('register')} {/* Changed to use the same style as login button */}
               </Link>
             </>
           )}
@@ -133,7 +147,14 @@ const Navbar = () => {
           >
             {user ? (
               <div className="flex flex-col">
-                <span className="px-4 py-2 text-slate-50">Hi {user.name || 'User'}</span>
+                <span className="px-4 py-2 text-slate-50">
+                  {t('remainingQuestionsInfo', { current: user.currentQuota, total: user.maxQuota })}
+                  {user.isTrialActive && (
+                    <span className="ml-2 text-yellow-400">
+                      (فترتك التجريبية تنتهي في {new Date(user.trialEndDate).toLocaleDateString()})
+                    </span>
+                  )}
+                </span>
                 <Link
                   to="/profile"
                   className="block px-4 py-2 text-slate-50 hover:bg-slate-700"
@@ -157,6 +178,10 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex flex-col">
+                <span className="px-4 py-2 text-slate-50">
+                  أسئلة الضيف المتبقية: {user?.currentQuota || 0} / {user?.maxQuota || 0}
+                  <p className="text-xs text-gray-500 mt-1">سجل الآن للحصول على المزيد من الأسئلة!</p>
+                </span>
                 <Link
                   to="/login"
                   className="block px-4 py-2 text-slate-50 hover:bg-slate-700"

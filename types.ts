@@ -1,5 +1,5 @@
 export interface UserAnswer {
-  userAnswer: any;
+  userAnswer: string | string[] | { prompt: string; answer: string }[];
   isCorrect: boolean;
 }
 
@@ -16,6 +16,7 @@ export interface Quiz {
   id?: string; // Unique ID for IndexedDB
   quizTitle: string;
   quizData: Question[];
+  userAnswers?: UserAnswer[]; // Added for history storage
   summary?: string | null;
   // Not a file, but the base64 representation for localStorage
   selectedImageFiles?: string[]; 
@@ -73,4 +74,15 @@ export interface AppSettings {
   temperature: number;
   topP: number;
   topK: number;
+}
+
+export interface User {
+  id: string;
+  planType: string;
+  currentQuota: number;
+  maxQuota: number;
+  quotaResetDate: string;
+  isTrialActive: boolean;
+  trialEndDate: string;
+  name?: string;
 }
