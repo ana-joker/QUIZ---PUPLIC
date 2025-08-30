@@ -511,9 +511,7 @@ const AppWrapper: React.FC = () => {
             <ToastProvider>
                 <AuthProvider>
                     <QuizProvider>
-                        <Router>
-                            <App />
-                        </Router>
+                        <App />
                     </QuizProvider>
                 </AuthProvider>
             </ToastProvider>
