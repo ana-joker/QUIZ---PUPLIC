@@ -110,7 +110,7 @@ const Register = () => {
             theme="filled_blue"
             size="large"
             text="continue_with"
-            width="100%"
+            width="300"
           />
         </div>
 
