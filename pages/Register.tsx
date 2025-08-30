@@ -35,7 +35,7 @@ const Register = () => {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
+        body: JSON.stringify({ ...form, deviceId }),
       });
       const data = await res.json();
       if (!res.ok) {
