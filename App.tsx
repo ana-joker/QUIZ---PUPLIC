@@ -1,18 +1,23 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import QuizCreator from './components/QuizCreator';
-import QuizFlow from './components/QuizFlow';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import GenerateText from "./pages/GenerateText";
+import GeneratePDF from "./pages/GeneratePDF";
+import PrivateRoute from "./components/PrivateRoute";
+import Navbar from "./components/Navbar";
 import HistoryPage from './components/HistoryPage';
 import RecallPage from './components/RecallPage';
-import ChoiceScreen from './components/ChoiceScreen';
-import SettingsPopover from './components/SettingsPopover';
-import { Quiz, RecallItem, AppSettings } from './types';
-import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
-import { SettingsIcon, HistoryIcon, BrainCircuitIcon, XIcon } from './components/ui/Icons';
-import { AuthProvider } from './context/AuthContext';
-import { Routes, Route } from 'react-router-dom';
-import Login from './pages/Login';
+import SettingsPage from './pages/SettingsPage';
 import ManageDevices from './pages/ManageDevices';
-import PrivateRoute from './components/PrivateRoute';
+import QuizFlow from './components/QuizFlow';
+
+import Dashboard from "./pages/Dashboard";
+import { AuthProvider } from './context/AuthContext';
+import { QuizProvider, useQuiz } from './context/QuizContext';
+import { AppSettings, Quiz, RecallItem } from './types';
+import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
 
 
 // --- I18N ---
@@ -364,7 +369,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-4 space-y-2 z-50">
                 {toasts.map(toast => (
                     <div key={toast.id} className="toast-animation bg-slate-800/80 dark:bg-slate-900/80 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-3">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'warning' ? 'bg-amber-500' : 'bg-cyan-500'}`}>
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'warning' ? 'bg-amber-500' : 'bg-cyan-500'}`}> 
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
                         <p className="text-sm font-medium">{toast.message}</p>
@@ -470,130 +475,46 @@ const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children })
     );
 };
 
-const AppContent: React.FC = () => {
-    type View = 'creator' | 'quiz' | 'history' | 'recall';
-    type CreationMode = 'text' | 'pdf';
-
-    const [currentView, setCurrentView] = useState<View>('creator');
-    const [creationMode, setCreationMode] = useState<CreationMode | null>(null);
-    const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-    const [quizToResume, setQuizToResume] = useState<Quiz | null>(null);
-    const [dueRecallItems, setDueRecallItems] = useState<RecallItem[]>([]);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const { t } = useTranslation();
-
-    const updateRecallCount = useCallback(() => {
-        const savedRecall = localStorage.getItem(RECALL_STORAGE_KEY);
-        const deck: RecallItem[] = savedRecall ? JSON.parse(savedRecall) : [];
-        const now = Date.now();
-        setDueRecallItems(deck.filter(item => item.nextReviewDate <= now));
-    }, []);
-
-    useEffect(() => {
-        updateRecallCount();
-    }, [updateRecallCount]);
-
-    const handleQuizGenerated = (quiz: Quiz) => {
-        setActiveQuiz(quiz);
-        setCurrentView('quiz');
-        setQuizToResume(null); 
-    };
-
+const App: React.FC = () => {
+    const { activeQuiz, quizToResume, setQuizToResume } = useQuiz();
     const handleStartQuizFromHistory = (quizData: Quiz) => {
         setQuizToResume(quizData);
-        setCurrentView('quiz');
     };
-
     const handleBackToCreator = () => {
-        setActiveQuiz(null);
-        setQuizToResume(null);
-        setCurrentView('creator');
-        setCreationMode(null); // Go back to the choice screen
-        updateRecallCount(); 
+        // This function might need to be adjusted depending on the desired behavior
     };
-
-    const handleShowHistory = () => {
-        setCurrentView('history');
-    };
-
-    const handleShowRecall = () => {
-        setCurrentView('recall');
-    };
-
-    const renderView = () => {
-        switch (currentView) {
-            case 'quiz':
-                return <QuizFlow initialQuiz={activeQuiz} quizToResume={quizToResume} onExit={handleBackToCreator} />;
-            case 'history':
-                return <HistoryPage onBack={handleBackToCreator} onRetake={handleStartQuizFromHistory} />;
-            case 'recall':
-                return <RecallPage onBack={handleBackToCreator} dueRecallItems={dueRecallItems} />;
-            case 'creator':
-            default:
-                if (!creationMode) {
-                    return (
-                        <>
-                            <header className="text-center my-8">
-                                <h1 
-                                    className="text-7xl md:text-8xl font-black tracking-tighter font-tajawal bg-gradient-to-br from-fuchsia-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent"
-                                    style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.1)' }}
-                                >
-                                    QUIZ TIME
-                                </h1>
-                            </header>
-                            <ChoiceScreen onSelectMode={setCreationMode} />
-                            <footer className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 px-4">
-                                <button onClick={handleShowHistory} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition text-base font-medium whitespace-nowrap">
-                                    <HistoryIcon className="w-5 h-5" />
-                                    <span>{t("quizHistory")}</span>
-                                </button>
-                                <button onClick={handleShowRecall} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition relative text-base font-medium whitespace-nowrap">
-                                    <BrainCircuitIcon className="w-5 h-5" />
-                                    <span>{t("recallHub")}</span>
-                                    {dueRecallItems.length > 0 && (
-                                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                                            {dueRecallItems.length}
-                                        </span>
-                                    )}
-                                </button>
-                                <button onClick={() => setIsSettingsOpen(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 text-gray-200 bg-slate-800/20 hover:bg-slate-800/50 rounded-lg transition text-base font-medium whitespace-nowrap" aria-label={t("quizSettings")}>
-                                    <SettingsIcon className="w-5 h-5" />
-                                     <span>{t("quizSettings")}</span>
-                                </button>
-                            </footer>
-                            <SettingsPopover isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-                        </>
-                    );
-                }
-                return (
-                    <QuizCreator
-                        creationMode={creationMode}
-                        onQuizGenerated={handleQuizGenerated}
-                        onBackToChoice={() => setCreationMode(null)}
-                    />
-                );
-        }
-    };
-
     return (
         <div className="min-h-screen">
+            <Navbar />
             <div className="container mx-auto p-4 sm:p-6 md:p-8">
-                {renderView()}
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/generate-text" element={<PrivateRoute><GenerateText /></PrivateRoute>} />
+                    <Route path="/generate-pdf" element={<PrivateRoute><GeneratePDF /></PrivateRoute>} />
+                    <Route path="/history" element={<HistoryPage onBack={handleBackToCreator} onRetake={handleStartQuizFromHistory} />} />
+                    <Route path="/recall" element={<RecallPage onBack={handleBackToCreator} dueRecallItems={[]} />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/manage-devices" element={<PrivateRoute><ManageDevices /></PrivateRoute>} />
+                    <Route path="/quiz" element={<QuizFlow initialQuiz={activeQuiz} quizToResume={quizToResume} onExit={handleBackToCreator} />} />
+                    <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                </Routes>
             </div>
         </div>
     );
 }
 
-const App: React.FC = () => {
+const AppWrapper: React.FC = () => {
     return (
         <SettingsProvider>
             <ToastProvider>
                 <AuthProvider>
-                    <Routes>
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/manage-devices" element={<PrivateRoute><ManageDevices /></PrivateRoute>} />
-                        <Route path="/*" element={<AppContent />} />
-                    </Routes>
+                    <QuizProvider>
+                        <Router>
+                            <App />
+                        </Router>
+                    </QuizProvider>
                 </AuthProvider>
             </ToastProvider>
         </SettingsProvider>
@@ -602,4 +523,4 @@ const App: React.FC = () => {
 
 // Make the custom hook available for other components
 export { useToast };
-export default App;
+export default AppWrapper;
