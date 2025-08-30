@@ -1,17 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { v4 as uuidv4 } from 'uuid';
 
 const Register = () => {
   const { register } = useAuth(); // Assuming register function exists in AuthContext
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let currentDeviceId = localStorage.getItem('deviceId');
+    if (!currentDeviceId) {
+      currentDeviceId = uuidv4();
+      localStorage.setItem('deviceId', currentDeviceId);
+    }
+    setDeviceId(currentDeviceId);
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     if (form.password !== form.confirmPassword) {
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
+      setLoading(false);
       return;
     }
     try {
@@ -22,32 +38,55 @@ const Register = () => {
         body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
       });
       const data = await res.json();
-      if (data.token) {
-        register(data.token, data); // Assuming register also logs in the user
-      } else {
-        console.error("Registration failed:", data.message);
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed.');
       }
-    } catch (error) {
-      console.error("An error occurred during registration:", error);
+      if (data.token) {
+        register(data.token, data.user);
+      } else {
+        throw new Error('No token received after registration.');
+      }
+    } catch (err: any) {
+      console.error("Registration Failed:", err);
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogle = async (credentialResponse: any) => {
+    setError('');
+    setLoading(true);
     try {
+      if (!deviceId) {
+        throw new Error('Device ID not generated. Please try again.');
+      }
+
       // Placeholder for API call
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google-register`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: credentialResponse.credential }),
+        body: JSON.stringify({
+          idToken: credentialResponse.credential,
+          deviceId: deviceId
+        }),
       });
       const data = await res.json();
-      if (data.token) {
-        register(data.token, data);
-      } else {
-        console.error("Google registration failed:", data.message);
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Google registration failed.');
       }
-    } catch (error) {
-      console.error("An error occurred during Google registration:", error);
+
+      if (data.token) {
+        register(data.token, data.user);
+      } else {
+        throw new Error('No token received after Google registration.');
+      }
+    } catch (err: any) {
+      console.error("Google Registration Failed:", err);
+      setError(err.message || 'Google registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,10 +131,13 @@ const Register = () => {
           <button
             type="submit"
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+            disabled={loading}
           >
-            Register
+            {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
+
+        {error && <p className="text-red-500 text-center mt-4">{error}</p>}
 
         <div className="flex items-center my-6">
           <div className="flex-grow border-t border-slate-600"></div>
@@ -103,14 +145,18 @@ const Register = () => {
           <div className="flex-grow border-t border-slate-600"></div>
         </div>
 
-        <div className="w-full">
+        <div className="w-full flex justify-center">
           <GoogleLogin
             onSuccess={handleGoogle}
-            onError={() => console.log("Registration Failed")}
+            onError={() => {
+              console.log("Registration Failed");
+              setError('Google registration failed. Please try again.');
+            }}
             theme="filled_blue"
             size="large"
             text="continue_with"
             width="300"
+            disabled={loading}
           />
         </div>
 

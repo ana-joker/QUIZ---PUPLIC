@@ -1,15 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { v4 as uuidv4 } from 'uuid';
 
 const Login = () => {
   const { login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let currentDeviceId = localStorage.getItem('deviceId');
+    if (!currentDeviceId) {
+      currentDeviceId = uuidv4();
+      localStorage.setItem('deviceId', currentDeviceId);
+    }
+    setDeviceId(currentDeviceId);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/login`, {
         method: "POST",
@@ -17,31 +32,54 @@ const Login = () => {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (data.token) {
-        login(data.token, data);
-      } else {
-        console.error("Login failed:", data.message);
+      if (!res.ok) {
+        throw new Error(data.message || 'Login failed.');
       }
-    } catch (error) {
-      console.error("An error occurred during login:", error);
+      if (data.token) {
+        login(data.token, data.user);
+      } else {
+        throw new Error('No token received after login.');
+      }
+    } catch (err: any) {
+      console.error("Login Failed:", err);
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogle = async (credentialResponse: any) => {
+    setError('');
+    setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google-login`, {
+      if (!deviceId) {
+        throw new Error('Device ID not generated. Please try again.');
+      }
+
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: credentialResponse.credential }),
+        body: JSON.stringify({
+          idToken: credentialResponse.credential,
+          deviceId: deviceId
+        }),
       });
       const data = await res.json();
-      if (data.token) {
-        login(data.token, data);
-      } else {
-        console.error("Google login failed:", data.message);
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Google login failed.');
       }
-    } catch (error) {
-      console.error("An error occurred during Google login:", error);
+
+      if (data.token) {
+        login(data.token, data.user);
+      } else {
+        throw new Error('No token received after Google login.');
+      }
+    } catch (err: any) {
+      console.error("Google Login Failed:", err);
+      setError(err.message || 'Google login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,10 +110,13 @@ const Login = () => {
           <button
             type="submit"
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+            disabled={loading}
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        {error && <p className="text-red-500 text-center mt-4">{error}</p>}
 
         <div className="flex items-center my-6">
           <div className="flex-grow border-t border-slate-600"></div>
@@ -83,14 +124,18 @@ const Login = () => {
           <div className="flex-grow border-t border-slate-600"></div>
         </div>
 
-        <div className="w-full">
+        <div className="w-full flex justify-center">
           <GoogleLogin
             onSuccess={handleGoogle}
-            onError={() => console.log("Login Failed")}
+            onError={() => {
+              console.log("Login Failed");
+              setError('Google login failed. Please try again.');
+            }}
             theme="filled_blue"
             size="large"
             text="continue_with"
             width="300"
+            disabled={loading}
           />
         </div>
 
