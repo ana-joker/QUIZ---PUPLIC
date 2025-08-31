@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { v4 as uuidv4 } from 'uuid';
 
 const Login = () => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,7 @@ const Login = () => {
       }
       if (data.token) {
         login(data.token, data.user, deviceId as string);
+        navigate('/dashboard');
       } else {
         throw new Error('No token received after login.');
       }
@@ -72,6 +74,7 @@ const Login = () => {
 
       if (data.token) {
         login(data.token, data.user, deviceId as string);
+        navigate('/dashboard');
       } else {
         throw new Error('No token received after Google login.');
       }

@@ -74,6 +74,7 @@ export interface AppSettings {
   temperature: number;
   topP: number;
   topK: number;
+  apiKey?: string; // Added API key field
 }
 
 export interface User {
