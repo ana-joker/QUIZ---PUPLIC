@@ -136,13 +136,7 @@ const SettingsPage: React.FC = () => {
                   <label htmlFor="topK" className="flex justify-between text-slate-300"><span>{t("settingsTopK")}</span><span>{localSettings.topK}</span></label>
                   <input id="topK" type="range" min="1" max="100" step="1" value={localSettings.topK} onChange={e => handleLocalSettingChange('topK', parseInt(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-teal-500"/>
               </div>
-              <div>
-                  <label htmlFor="apiKey" className="font-medium text-slate-50">{t("settingsApiKey")}</label>
-                  <input id="apiKey" type="text" value={localSettings.apiKey || ''} onChange={e => handleLocalSettingChange('apiKey', e.target.value)}
-                    placeholder={t("settingsApiKeyPlaceholder")}
-                    className="w-full mt-2 px-3 py-2 border border-slate-600 bg-slate-800 text-slate-50 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-              </div>
+              
           </div>
         </div>
     </div>

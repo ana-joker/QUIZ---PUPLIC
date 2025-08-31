@@ -98,24 +98,24 @@ const Navbar = () => {
               </AnimatePresence>
             </div>
           ) : (
-            <>
-              <span className="text-sm text-gray-400 mr-4">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-400">
                 {t('guestQuestionsRemaining', { current: user?.currentQuota || 0, total: user?.maxQuota || 0 })}
                 <p className="text-xs text-gray-500 mt-1">{t('registerNowPrompt')}</p>
               </span>
               <Link
                 to="/login"
-                className="px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-700 transition-colors duration-200"
+                className="text-slate-50 hover:text-purple-400 transition-colors duration-200"
               >
                 {t('login')}
               </Link>
               <Link
                 to="/register"
-                className="px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-700 transition-colors duration-200"
+                className="text-slate-50 hover:text-purple-400 transition-colors duration-200"
               >
-                {t('register')} {/* Changed to use the same style as login button */}
+                {t('register')}
               </Link>
-            </>
+            </div>
           )}
         </div>
 
