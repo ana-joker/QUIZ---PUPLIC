@@ -18,7 +18,6 @@ export interface Quiz {
   quizData: Question[];
   userAnswers?: UserAnswer[]; // Added for history storage
   summary?: string | null;
-  // Not a file, but the base64 representation for localStorage
   selectedImageFiles?: string[]; 
   savedAt?: string;
   score?: number;
@@ -35,7 +34,7 @@ export interface Question {
   options: string[];
   matchOptions?: string[];
   correctAnswer: string | string[] | { prompt: string; answer: string }[];
-  correctAnswerIndex?: number; // Added for new interface
+  correctAnswerIndex?: number;
   explanation: string;
   caseDescription?: string;
   refersToUploadedImageIndex?: number;
@@ -59,10 +58,7 @@ export interface AppSettings {
   quizLanguage: string;
   explanationLanguage: string;
   numImageQuestions: string;
-
-  // New simplified settings
   additionalInstructions: string;
-
   questionTypes: string[];
 
   // --- General App Settings ---
@@ -74,16 +70,27 @@ export interface AppSettings {
   temperature: number;
   topP: number;
   topK: number;
-  apiKey?: string; // Added API key field
+  apiKey?: string;
+}
+
+export interface Device { // 💡 AZIZ: تعريف Device interface
+    deviceId: string;
+    deviceName?: string;
+    lastLogin: string; // Date as string
 }
 
 export interface User {
-  id: string;
-  planType: string;
-  currentQuota: number;
-  maxQuota: number;
-  quotaResetDate: string;
-  isTrialActive: boolean;
-  trialEndDate: string;
-  name?: string;
+  _id: string; // 💡 AZIZ: _id بدلاً من id
+  name?: string; // 💡 AZIZ: قد لا يكون موجودًا في Google login إذا لم يتم تحديثه
+  email: string;
+  planType: 'free' | 'paid' | 'course_student' | 'admin_teacher' | 'owner' | 'guest'; // 💡 AZIZ: تحديث أنواع الخطط
+  currentQuota: number; // 💡 AZIZ: الكوتا المتبقية لليوم
+  maxQuota: number; // 💡 AZIZ: الكوتا القصوى لليوم (كانت dailyQuota في الـ Backend)
+  quotaResetDate: string; // 💡 AZIZ: تاريخ إعادة تعيين الكوتا (Date as string)
+  isTrialActive?: boolean; // 💡 AZIZ: حقل اختياري
+  trialEndDate?: string; // 💡 AZIZ: حقل اختياري (Date as string)
+  googleId?: string;
+  picture?: string;
+  devices?: Device[]; // 💡 AZIZ: قائمة الأجهزة
 }
+
