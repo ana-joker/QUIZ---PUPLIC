@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User } from "../types"; // Import the User interface
+import { User } from "../types";
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios'; // 💡 AZIZ: استخدام axios
 
 interface AuthContextType {
   user: User | null;
@@ -27,20 +28,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // 💡 AZIZ: استخدام axios وإرسال deviceId في الهيدر
+      axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/me`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'x-device-id': deviceId // 💡 AZIZ: إرسال deviceId هنا
+        },
       })
-        .then((res) => res.json())
-        .then((data: User | { message: string }) => { // Can be User or an error object
-          if ('id' in data) { // Check for a property that exists on User but not the error
-            setUser(data);
+        .then((res) => {
+          if (res.status === 200) { // 💡 AZIZ: التحقق من status axios
+            setUser(res.data); // axios يضع الـ data مباشرة في .data
           } else {
             logout(); // Token might be invalid or another error occurred
           }
         })
-        .catch(() => logout());
+        .catch((err) => {
+            console.error("Failed to fetch user data:", err);
+            logout(); // Token might be invalid or another error occurred
+        });
     }
-  }, [token]);
+  }, [token, deviceId]); // 💡 AZIZ: إضافة deviceId كـ dependency
 
   const login = (jwt: string, userData: User, deviceId: string) => {
     localStorage.setItem("token", jwt);
@@ -59,19 +66,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (name: string, email: string, password: string, deviceId: string) => {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, deviceId }),
+    // 💡 AZIZ: استخدام axios وإرسال deviceId في الـ body
+    const res = await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/register`, {
+      name, email, password, deviceId
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || 'Registration failed.');
-    }
-    if (data.token) {
+    const data = res.data;
+    if (res.status === 201 && data.token) { // 💡 AZIZ: التحقق من status axios
       login(data.token, data.user, deviceId);
     } else {
-      throw new Error('No token received after registration.');
+      throw new Error(data.message || 'No token received after registration.');
     }
   };
 
@@ -89,3 +92,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

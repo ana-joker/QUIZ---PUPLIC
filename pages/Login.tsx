@@ -1,9 +1,11 @@
+// src/pages/Login.tsx
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 const Login = () => {
   const { login } = useAuth();
@@ -27,24 +29,23 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, deviceId }),
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/login`, {
+        ...form,
+        deviceId
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed.');
-      }
-      if (data.token) {
+      
+      const data = res.data;
+      
+      if (res.status === 200 && data.token) { // 💡 AZIZ: التحقق من status axios
         login(data.token, data.user, deviceId as string);
         navigate('/dashboard');
       } else {
-        throw new Error('No token received after login.');
+        throw new Error(data.message || 'No token received after login.');
       }
     } catch (err: any) {
       console.error("Login Failed:", err);
-      setError(err.message || 'Login failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -58,29 +59,23 @@ const Login = () => {
         throw new Error('Device ID not generated. Please try again.');
       }
 
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idToken: credentialResponse.credential,
-          deviceId: deviceId
-        }),
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google-login`, {
+        idToken: credentialResponse.credential,
+        deviceId: deviceId
       });
-      const data = await res.json();
+      
+      const data = res.data;
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Google login failed.');
-      }
-
-      if (data.token) {
+      if (res.status === 200 && data.token) { // 💡 AZIZ: التحقق من status axios
         login(data.token, data.user, deviceId as string);
         navigate('/dashboard');
       } else {
-        throw new Error('No token received after Google login.');
+        throw new Error(data.message || 'No token received after Google login.');
       }
     } catch (err: any) {
       console.error("Google Login Failed:", err);
-      setError(err.message || 'Google login failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Google login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,12 +1,15 @@
+// src/pages/Register.tsx
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // 💡 AZIZ: استيراد useNavigate
 import { motion } from "framer-motion";
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 const Register = () => {
-  const { register, login } = useAuth(); // Assuming register function exists in AuthContext
+  const { register, login } = useAuth();
+  const navigate = useNavigate(); // 💡 AZIZ: استخدام useNavigate
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,9 +35,11 @@ const Register = () => {
     }
     try {
       await register(form.name, form.email, form.password, deviceId as string);
+      navigate('/dashboard'); // 💡 AZIZ: التوجيه بعد التسجيل الناجح
     } catch (err: any) {
       console.error("Registration Failed:", err);
-      setError(err.message || 'Registration failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -48,29 +53,23 @@ const Register = () => {
         throw new Error('Device ID not generated. Please try again.');
       }
 
-      // Placeholder for API call
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idToken: credentialResponse.credential,
-          deviceId: deviceId
-        }),
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/google-login`, {
+        idToken: credentialResponse.credential,
+        deviceId: deviceId
       });
-      const data = await res.json();
+      
+      const data = res.data;
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Google registration failed.');
-      }
-
-      if (data.token) {
+      if (res.status === 200 && data.token) { // 💡 AZIZ: التحقق من status axios
         login(data.token, data.user, deviceId as string);
+        navigate('/dashboard'); // 💡 AZIZ: التوجيه بعد تسجيل الدخول بـ Google
       } else {
-        throw new Error('No token received after Google registration.');
+        throw new Error(data.message || 'No token received after Google registration.');
       }
     } catch (err: any) {
       console.error("Google Registration Failed:", err);
-      setError(err.message || 'Google registration failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Google registration failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
