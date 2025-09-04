@@ -646,15 +646,13 @@ const AppWrapper: React.FC = () => {
     }, []); // Empty dependency array ensures this runs only once
 
     return (
-        <Router>
-            <SettingsProvider>
-                <ToastProvider>
-                    <QuizProvider>
-                        <App />
-                    </QuizProvider>
-                </ToastProvider>
-            </SettingsProvider>
-        </Router>
+        <SettingsProvider>
+            <ToastProvider>
+                <QuizProvider>
+                    <App />
+                </QuizProvider>
+            </ToastProvider>
+        </SettingsProvider>
     );
 };
 
