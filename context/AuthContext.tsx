@@ -1,95 +1,117 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User } from "../types";
-import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios'; // 💡 AZIZ: استخدام axios
+import { create } from 'zustand';
+import { User, AuthState as AuthStateType } from '../types'; // Import User and AuthState from types.ts
 
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  deviceId: string | null;
-  login: (jwt: string, userData: User, deviceId: string) => void;
+interface AuthState extends AuthStateType {
+  isAuthenticated: boolean;
+  // دوال تحكم
+  init: () => void;
+  login: (user: User, token: string) => void;
   logout: () => void;
-  register: (name: string, email: string, password: string, deviceId: string) => Promise<void>;
+  setUser: (user: User) => void;
+  fetchMe: () => Promise<void>;
+  // دوال مساعدة
+  isTeacher: boolean;
+  isAdmin: boolean;
+  isOwner: boolean;
+  isPaid: boolean;
+  acceptInvite: (inviteToken: string) => Promise<boolean>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: undefined,
+  token: undefined,
+  deviceId: localStorage.getItem('qt_deviceId') || '', // Read deviceId from localStorage
+  isAuthenticated: false,
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [deviceId, setDeviceId] = useState<string | null>(() => {
-    let storedDeviceId = localStorage.getItem("deviceId");
-    if (!storedDeviceId) {
-      storedDeviceId = uuidv4();
-      localStorage.setItem("deviceId", storedDeviceId);
+  init: () => {
+    const token = localStorage.getItem('qt_token') || undefined;
+    const userJson = localStorage.getItem('qt_user');
+    let user: User | undefined = undefined;
+    if (userJson) {
+      try {
+        user = JSON.parse(userJson);
+      } catch (error) {
+        user = undefined;
+      }
     }
-    return storedDeviceId;
-  });
+    set({ user, token, isAuthenticated: !!(token && user) });
+  },
 
-  useEffect(() => {
-    if (token) {
-      // 💡 AZIZ: استخدام axios وإرسال deviceId في الهيدر
-      axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/me`, {
+  login: (user, token) => {
+    localStorage.setItem('qt_token', token);
+    localStorage.setItem('qt_user', JSON.stringify(user));
+    set({ user, token, isAuthenticated: true });
+  },
+
+  logout: () => {
+    localStorage.removeItem('qt_token');
+    localStorage.removeItem('qt_user');
+    set({ user: undefined, token: undefined, isAuthenticated: false });
+  },
+
+  setUser: (user: User) => {
+    localStorage.setItem('qt_user', JSON.stringify(user));
+    set({ user });
+  },
+
+  fetchMe: async () => {
+    const { token } = get();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ user: data.user, isAuthenticated: true });
+        localStorage.setItem('qt_user', JSON.stringify(data.user));
+      } else if (res.status === 401) {
+        get().logout();
+      }
+    } catch {
+      // تجاهل الخطأ
+    }
+  },
+
+  get isTeacher() {
+    return get().user?.role === 'teacher';
+  },
+  get isAdmin() {
+    return get().user?.role === 'admin';
+  },
+  get isOwner() {
+    return get().user?.role === 'owner';
+  },
+  get isPaid() {
+    return get().user?.plan === 'paid';
+  },
+
+  acceptInvite: async (inviteToken: string) => {
+    const { token, fetchMe } = get();
+    if (!token) return false;
+    try {
+      const res = await fetch('/api/admin/invites/accept', {
+        method: 'POST',
         headers: {
-            Authorization: `Bearer ${token}`,
-            'x-device-id': deviceId // 💡 AZIZ: إرسال deviceId هنا
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      })
-        .then((res) => {
-          if (res.status === 200) { // 💡 AZIZ: التحقق من status axios
-            setUser(res.data); // axios يضع الـ data مباشرة في .data
-          } else {
-            logout(); // Token might be invalid or another error occurred
-          }
-        })
-        .catch((err) => {
-            console.error("Failed to fetch user data:", err);
-            logout(); // Token might be invalid or another error occurred
-        });
+        body: JSON.stringify({ token: inviteToken }),
+      });
+      if (res.ok) {
+        await fetchMe(); // Refresh user data after successful invite acceptance
+        return true;
+      } else {
+        // Handle error, e.g., invite not found or expired
+        console.error('Failed to accept invite', await res.json());
+        return false;
+      }
+    } catch (error) {
+      console.error('Error accepting invite', error);
+      return false;
     }
-  }, [token, deviceId]); // 💡 AZIZ: إضافة deviceId كـ dependency
+  },
+}));
 
-  const login = (jwt: string, userData: User, deviceId: string) => {
-    localStorage.setItem("token", jwt);
-    localStorage.setItem("deviceId", deviceId);
-    setToken(jwt);
-    setDeviceId(deviceId);
-    setUser(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("deviceId");
-    setToken(null);
-    setDeviceId(null);
-    setUser(null);
-  };
-
-  const register = async (name: string, email: string, password: string, deviceId: string) => {
-    // 💡 AZIZ: استخدام axios وإرسال deviceId في الـ body
-    const res = await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/api/auth/register`, {
-      name, email, password, deviceId
-    });
-    const data = res.data;
-    if (res.status === 201 && data.token) { // 💡 AZIZ: التحقق من status axios
-      login(data.token, data.user, deviceId);
-    } else {
-      throw new Error(data.message || 'No token received after registration.');
-    }
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, token, deviceId, login, logout, register }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
-
+// Initialize the store on application load
+useAuthStore.getState().init();

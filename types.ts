@@ -80,17 +80,35 @@ export interface Device { // 💡 AZIZ: تعريف Device interface
 }
 
 export interface User {
-  _id: string; // 💡 AZIZ: _id بدلاً من id
-  name?: string; // 💡 AZIZ: قد لا يكون موجودًا في Google login إذا لم يتم تحديثه
+  id: string; // Changed from _id to id
+  name?: string;
   email: string;
-  planType: 'free' | 'paid' | 'course_student' | 'admin_teacher' | 'owner' | 'guest'; // 💡 AZIZ: تحديث أنواع الخطط
-  currentQuota: number; // 💡 AZIZ: الكوتا المتبقية لليوم
-  maxQuota: number; // 💡 AZIZ: الكوتا القصوى لليوم (كانت dailyQuota في الـ Backend)
-  quotaResetDate: string; // 💡 AZIZ: تاريخ إعادة تعيين الكوتا (Date as string)
-  isTrialActive?: boolean; // 💡 AZIZ: حقل اختياري
-  trialEndDate?: string; // 💡 AZIZ: حقل اختياري (Date as string)
+  role: 'student'|'teacher'|'admin'|'owner'; // Added role
+  plan: 'guest'|'free'|'paid'; // Changed from planType to plan
+  planSource?: 'self'|'family'|'admin'|'teacher'|'promo'; // Added planSource
+  planExpiresAt?: string; // Added planExpiresAt
+  currentQuota: number;
+  maxQuota: number;
+  quotaResetDate: string;
+  isTrialActive?: boolean;
+  trialEndDate?: string;
   googleId?: string;
   picture?: string;
-  devices?: Device[]; // 💡 AZIZ: قائمة الأجهزة
+  devices?: Device[];
+}
+
+export type AuthState = {
+  token?: string;
+  user?: User;
+  deviceId: string;
+};
+
+export interface TeacherCourse {
+  id: string;
+  title: string;
+  description?: string;
+  code: string;
+  materials: any[];
+  students: any[];
 }
 

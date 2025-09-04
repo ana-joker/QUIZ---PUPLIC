@@ -1,84 +1,93 @@
-import React from 'react';
-import { useAuth } from '../context/AuthContext';
+
+import React, { useEffect, useState } from 'react';
+import { useAuthStore } from '../context/AuthStore';
+import { useToast } from '../App';
+import { Loader2Icon } from '../components/ui/Icons';
+import { api } from '../services/api';
+import UsageBadge from '../components/UsageBadge';
+import QuotaProgress from '../components/QuotaProgress';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useTranslation } from '../App';
 
 const MyUsage: React.FC = () => {
-  const { user } = useAuth();
-  const { t } = useTranslation();
+  const { user, token } = useAuthStore();
+  const { addToast } = useToast();
+  const [usage, setUsage] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!user) {
-    // This case should ideally be handled by PrivateRoute, but as a fallback
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-50 p-4">
-        <p>{t('loadingUserData')}</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    api.get('/api/me/usage', { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => setUsage(res.data))
+      .catch(() => {
+        setError('فشل تحميل سجل الاستخدام.');
+        addToast('فشل تحميل سجل الاستخدام', 'error');
+      })
+      .finally(() => setLoading(false));
+  }, [token, addToast]);
+
+  if (!user) return <div className="p-8 text-center">يجب تسجيل الدخول لعرض سجل الاستخدام.</div>;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen bg-slate-900 text-slate-50 p-8"
-    >
-      <h1 className="text-4xl font-bold mb-8 text-purple-600">{t('myUsageTitle')}</h1>
-
-      <div className="bg-slate-700 rounded-2xl shadow-xl p-6 space-y-6">
-        <h2 className="text-2xl font-semibold text-purple-400 mb-4">{t('accountDetails')}</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <p className="text-sm text-gray-400">{t('planType')}</p>
-            <p className="text-lg font-medium text-white capitalize">{user.planType}</p>
+    <div className="max-w-xl mx-auto py-10">
+      <h2 className="text-2xl font-bold text-cyan-400 mb-6 text-center">سجل الاستخدام</h2>
+      {loading ? (
+        <div className="flex justify-center items-center py-10"><Loader2Icon className="w-8 h-8 animate-spin text-cyan-400" /></div>
+      ) : error ? (
+        <div className="bg-red-900/40 text-red-200 p-4 rounded-lg text-center">{error}</div>
+      ) : usage ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-slate-900/60 p-4 rounded-lg border border-slate-700">
+            <div className="font-bold text-cyan-200">الخطة: <span className="text-cyan-400">{usage.plan}</span></div>
+            <div className="font-bold text-cyan-200">المتبقي اليوم: <span className="text-green-400">{usage.today.general} / {usage.limits.general}</span></div>
           </div>
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <p className="text-sm text-gray-400">{t('questionsToday')}</p>
-            <p className="text-lg font-medium text-white">{user.currentQuota} / {user.maxQuota}</p>
+          <div className="py-4 flex justify-center">
+            <UsageBadge />
           </div>
-          {user.quotaResetDate && (
-            <div className="bg-slate-800 p-4 rounded-lg">
-              <p className="text-sm text-gray-400">{t('quotaResets')}</p>
-              <p className="text-lg font-medium text-white">{new Date(user.quotaResetDate).toLocaleDateString()}</p>
+          <div className="py-4 flex justify-center">
+            <QuotaProgress />
+          </div>
+          {/* استهلاك الكورسات */}
+          {usage.today.courses && Object.keys(usage.today.courses).length > 0 && (
+            <div className="bg-slate-900/60 p-4 rounded-lg border border-slate-700">
+              <div className="font-bold text-cyan-200 mb-2">استهلاك الكورسات اليومي:</div>
+              <ul className="text-gray-300 space-y-1">
+                {Object.entries(usage.today.courses).map(([courseId, courseUsage]: [string, any]) => (
+                  <li key={courseId} className="flex justify-between">
+                    <span>كورس: {courseId}</span>
+                    <span>{courseUsage} / {usage.limits.course} سؤال</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
-          {user.isTrialActive && user.trialEndDate && (
-            <div className="bg-slate-800 p-4 rounded-lg">
-              <p className="text-sm text-gray-400">{t('trialEnds')}</p>
-              <p className="text-lg font-medium text-yellow-400">{new Date(user.trialEndDate).toLocaleDateString()}</p>
+          {/* سجل آخر 7 أيام */}
+          <div className="bg-slate-900/60 p-4 rounded-lg border border-slate-700">
+            <div className="font-bold text-cyan-200 mb-2">الاستهلاك آخر 7 أيام:</div>
+            <ul className="text-gray-300 space-y-1">
+              {usage.history && usage.history.length > 0 ? usage.history.map((h: any, i: number) => (
+                <li key={i} className="flex justify-between">
+                  <span>{h.date}</span>
+                  <span>{h.questions} سؤال</span>
+                </li>
+              )) : <li>لا يوجد بيانات.</li>}
+            </ul>
+          </div>
+          {/* زر الترقية للخطة المدفوعة */}
+          {(usage.plan === 'free' || usage.plan === 'guest') && (
+            <div className="pt-6 border-t border-slate-600">
+              <Link
+                to="/upgrade"
+                className="block w-full text-center py-3 px-6 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                الترقية إلى بريميوم
+              </Link>
             </div>
           )}
-          {/* Placeholder for lastActivity - requires backend implementation */}
-          {/* <div className="bg-slate-800 p-4 rounded-lg">
-            <p className="text-sm text-gray-400">{t('lastActivity')}</p>
-            <p className="text-lg font-medium text-white">Not available</p>
-          </div> */}
         </div>
-
-        {(user.planType === 'free' || user.planType === 'guest') && (
-          <div className="pt-6 border-t border-slate-600">
-            <Link
-              to="/upgrade" // Assuming an upgrade page route
-              className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
-            >
-              {t('upgradeToPremium')}
-            </Link>
-          </div>
-        )}
-
-        {/* Future: Join Course Button */}
-        {/* <div className="pt-4 border-t border-slate-600">
-          <button
-            onClick={() => console.log('Join Course clicked')}
-            className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-          >
-            {t('joinCourse')}
-          </button>
-        </div> */}
-      </div>
-    </motion.div>
+      ) : null}
+    </div>
   );
 };
 

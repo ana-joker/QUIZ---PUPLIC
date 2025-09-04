@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSettings, useTranslation } from '../App';
 import { AppSettings } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { api } from '../services/api';
 
 const SettingsPage: React.FC = () => {
   const { settings, setSettings } = useSettings();
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+    const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'quiz' | 'general' | 'account'>('general');
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
@@ -47,7 +48,7 @@ const SettingsPage: React.FC = () => {
       </div>
       <div>
         <label className="font-medium text-slate-50">{t("settingsLanguage")}</label>
-        <select value={localSettings.uiLanguage} onChange={e => handleLocalSettingChange('uiLanguage', e.target.value)}
+    <select value={localSettings.uiLanguage} onChange={e => handleLocalSettingChange('uiLanguage', e.target.value as 'ar'|'en')}
           className="w-full mt-2 px-3 py-2 border border-slate-600 bg-slate-800 text-slate-50 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
             <option value="en">English</option>
             <option value="ar">العربية</option>
@@ -142,20 +143,49 @@ const SettingsPage: React.FC = () => {
     </div>
   );
 
-  const AccountSettings = () => (
+  const AccountSettings = () => {
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordSuccess, setPasswordSuccess] = useState('');
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword !== confirmPassword) {
+            setPasswordError("New passwords don't match.");
+            return;
+        }
+        setIsChangingPassword(true);
+        setPasswordError('');
+        setPasswordSuccess('');
+        try {
+            await api.post('/api/auth/change-password', { oldPassword, newPassword });
+            setPasswordSuccess('Password changed successfully!');
+            setOldPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: any) {
+            setPasswordError(err.response?.data?.message || 'Failed to change password.');
+        } finally {
+            setIsChangingPassword(false);
+        }
+    };
+
+    return (
     <div className="space-y-4 text-sm">
-        <div className="p-4 bg-slate-800 rounded-lg shadow-md"> {/* Updated background and shadow */}
-            <p className="font-semibold text-slate-50">Hi, {user?.name || 'User'}</p> {/* Use optional chaining for user?.name */}
-            <p className="text-slate-300">{user?.email || 'N/A'}</p> {/* Display email */}
+        <div className="p-4 bg-slate-800 rounded-lg shadow-md">
+            <p className="font-semibold text-slate-50">Hi, {user?.name || 'User'}</p>
+            <p className="text-slate-300">{user?.email || 'N/A'}</p>
         </div>
         <div className="space-y-2">
             <h3 className="font-semibold text-slate-50 mt-4">Account Details</h3>
             <div className="flex justify-between items-center p-3 bg-slate-800 rounded-md">
                 <span className="text-slate-300">Account Type:</span>
-                <span className="font-medium text-teal-400">Free</span> {/* Placeholder for account type */}
+                <span className="font-medium text-teal-400">{user?.plan ? user.plan.charAt(0).toUpperCase() + user.plan.slice(1) : 'Free'}</span>
             </div>
-            {/* Upgrade Plan Button - only if Free */}
-            {true && ( // Placeholder condition for 'if Free'
+            {user?.plan === 'free' && (
                 <button className="w-full py-2 px-4 rounded-md bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold hover:shadow-lg transition-all duration-300">
                     Upgrade Plan
                 </button>
@@ -163,11 +193,48 @@ const SettingsPage: React.FC = () => {
             <Link to="/manage-devices" className="block py-2 px-4 rounded-md hover:bg-slate-800 transition-colors duration-200 text-slate-50">Manage Devices</Link>
             <Link to="/my-usage" className="block py-2 px-4 rounded-md hover:bg-slate-800 transition-colors duration-200 text-slate-50">My Quota</Link>
         </div>
-        <div className="pt-4 border-t border-slate-600"> {/* Updated border color */}
+
+        <div className="pt-4 border-t border-slate-600">
+            <h3 className="font-semibold text-slate-50 mb-2">Change Password</h3>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+                <input
+                    type="password"
+                    placeholder="Old Password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full p-2 rounded-md bg-slate-800 text-slate-50 border border-slate-600"
+                />
+                <input
+                    type="password"
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full p-2 rounded-md bg-slate-800 text-slate-50 border border-slate-600"
+                />
+                <input
+                    type="password"
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full p-2 rounded-md bg-slate-800 text-slate-50 border border-slate-600"
+                />
+                <button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="w-full py-2 px-4 rounded-md bg-blue-600 text-white font-semibold disabled:opacity-50"
+                >
+                    {isChangingPassword ? 'Changing...' : 'Change Password'}
+                </button>
+                {passwordError && <p className="text-red-500 text-xs">{passwordError}</p>}
+                {passwordSuccess && <p className="text-green-500 text-xs">{passwordSuccess}</p>}
+            </form>
+        </div>
+
+        <div className="pt-4 border-t border-slate-600">
             <button onClick={handleLogout} className="w-full py-2 px-4 rounded-md text-white bg-red-600 hover:bg-red-700">Logout</button>
         </div>
     </div>
-  );
+  )};
 
   return (
     <motion.div

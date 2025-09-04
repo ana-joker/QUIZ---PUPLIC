@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { api } from '../services/api';
 import { useTranslation } from '../App';
 import QuizRenderer from '../components/QuizRenderer';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';

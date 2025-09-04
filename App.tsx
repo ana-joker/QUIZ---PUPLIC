@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import AuthPage from "./pages/AuthPage";
 import GenerateText from "./pages/GenerateText";
 import GeneratePDF from "./pages/GeneratePDF";
-import PrivateRoute from "./components/PrivateRoute";
+import PrivateRoute from "./components/PrivateRoute"; // 💡 AZIZ: تأكد من أن PrivateRoute يتعامل مع الأدوار
 import Navbar from "./components/Navbar";
 import HistoryPage from './components/HistoryPage';
 import RecallPage from './components/RecallPage';
@@ -15,10 +14,22 @@ import MyUsage from './pages/MyUsage';
 import QuizFlow from './components/QuizFlow';
 
 import Dashboard from "./pages/Dashboard";
-import { AuthProvider } from './context/AuthContext';
+import AdminDashboard from "./pages/AdminDashboard";
+// 💡 AZIZ: إضافة استيرادات المكونات الجديدة
+import JoinCourse from './pages/JoinCourse'; // 💡 AZIZ: افتراض المسار الصحيح
+import GenerateFromMaterial from './pages/GenerateFromMaterial'; // 💡 AZIZ: افتراض المسار الصحيح
+import StudentDashboard from './pages/StudentDashboard'; // 💡 AZIZ: افتراض المسار الصحيح
+import TeacherDashboard from './pages/TeacherDashboard'; // 💡 AZIZ: افتراض المسار الصحيح
+import MyCourses from './pages/MyCourses';
+import CourseDetails from './pages/CourseDetails';
+import Billing from './pages/Billing';
+import ManageMaterials from './pages/ManageMaterials';
+
+
 import { QuizProvider, useQuiz } from './context/QuizContext';
 import { AppSettings, Quiz, RecallItem } from './types';
 import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
+import { setToastFunction } from './services/api';
 
 
 // --- I18N ---
@@ -72,9 +83,9 @@ const translations = {
     "correctAnswer": "Correct answer:",
     "explanation": "Explanation:",
     "addToRecall": "Add to Recall",
-    "addedToRecall": "Added to Recall",
-    "backToResults": "Back to Results",
-    "backToCreator": "Back to Creator",
+    "addedToRecall": "Added To Recall",
+    "backToResults": "Back To Results",
+    "backToCreator": "Back To Creator",
     "noHistory": "You have no quiz history yet.",
     "noValidQuestions": "There are no valid questions in this quiz. Check the Fast Summary to see all questions.",
     "date": "Date:",
@@ -189,10 +200,60 @@ const translations = {
     "trialEnds": "انتهاء الفترة التجريبية",
     "loadingUserData": "جاري تحميل بيانات المستخدم...",
     "upgradeToPremium": "الترقية إلى بريميوم",
-    "joinCourse": "الانضمام إلى دورة"
+    "joinCourse": "الانضمام إلى دورة",
+    "home": "Home",
+    "generate": "Generate",
+    "history": "History",
+    "dashboard": "Dashboard",
+    "myCourses": "My Courses",
+    "teacherDashboard": "Teacher Dashboard",
+    "adminDashboard": "Admin Dashboard",
+    "errorNoMaterialId": "Error: No material ID provided.",
+    "errorGeneratingQuiz": "Error generating quiz.",
+    "generateFromMaterial": "Generate Quiz from Material",
+    "generatedQuiz": "Generated Quiz",
+    "readyToGenerateFromMaterial": "Ready to generate quiz from material",
+    "startQuizGeneration": "Start Quiz Generation",
+    "errorLoadingCourses": "Could not load your courses.",
+    "pleaseSelectCourse": "Please select a course.",
+    "pleaseSelectMaterial": "Please select a material.",
+    "quizGeneratedSuccessfully": "Quiz generated successfully!",
+    "errorGeneratingQuizFromMaterial": "Failed to generate quiz from material.",
+    "noCoursesFound": "No courses found. Please join a course first.",
+    "noMaterialsFound": "No materials found for this course.",
+    "selectCourse": "Select Course",
+    "selectCoursePlaceholder": "-- Select a course --",
+    "selectMaterial": "Select Material",
+    "selectMaterialPlaceholder": "-- Select a material --",
+    "generateQuizFromMaterial": "Generate Quiz from Material"
   },
   ar: {
+    "errorNoMaterialId": "خطأ: لم يتم توفير معرف المادة.",
+    "errorGeneratingQuiz": "خطأ في إنشاء الاختبار.",
+    "generateFromMaterial": "إنشاء اختبار من المادة",
+    "generatedQuiz": "الاختبار الذي تم إنشاؤه",
+    "readyToGenerateFromMaterial": "جاهز لإنشاء اختبار من المادة",
+    "startQuizGeneration": "بدء إنشاء الاختبار",
+    "errorLoadingCourses": "تعذر تحميل دوراتك.",
+    "pleaseSelectCourse": "يرجى اختيار دورة.",
+    "pleaseSelectMaterial": "يرجى اختيار مادة.",
+    "quizGeneratedSuccessfully": "تم إنشاء الاختبار بنجاح!",
+    "errorGeneratingQuizFromMaterial": "فشل في إنشاء الاختبار من المادة.",
+    "noCoursesFound": "لم يتم العثور على دورات. يرجى الانضمام إلى دورة أولاً.",
+    "noMaterialsFound": "لا توجد مواد لهذه الدورة.",
+    "selectCourse": "اختر الدورة",
+    "selectCoursePlaceholder": "-- اختر دورة --",
+    "selectMaterial": "اختر المادة",
+    "selectMaterialPlaceholder": "-- اختر مادة --",
+    "generateQuizFromMaterial": "إنشاء اختبار من المادة",
     "aiQuizGenerator": "مولد الاختبارات الذكي",
+    "home": "الرئيسية",
+    "generate": "إنشاء",
+    "history": "السجل",
+    "dashboard": "لوحة التحكم",
+    "myCourses": "دوراتي",
+    "teacherDashboard": "لوحة تحكم المعلم",
+    "adminDashboard": "لوحة تحكم المشرف",
     "transformContentToQuiz": "حوّل أي محتوى إلى اختبار تفاعلي.",
     "quizTopicOptional": "موضوع الاختبار (اختياري)",
     "topicPlaceholder": "مثال: البناء الضوئي، الحرب العالمية الثانية، React Hooks",
@@ -366,12 +427,12 @@ export type TranslationKey = keyof typeof translations.en;
 type Toast = {
     id: number;
     message: string;
-    type: 'info' | 'warning';
+    type: 'info' | 'warning' | 'success' | 'error'; // Added success and error types
 };
 
-type ToastContextType = {
-    addToast: (message: string, type: Toast['type']) => void;
-};
+interface ToastContextType {
+    addToast: (message: string, type?: Toast['type']) => void;
+}
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
@@ -384,7 +445,7 @@ const useToast = () => {
 const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const addToast = useCallback((message: string, type: Toast['type']) => {
+    const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
         const id = Date.now();
         setToasts(prevToasts => [...prevToasts, { id, message, type }]);
         setTimeout(() => {
@@ -397,8 +458,18 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {children}
             <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-4 space-y-2 z-50">
                 {toasts.map(toast => (
-                    <div key={toast.id} className={`toast-animation bg-slate-800/80 dark:bg-slate-900/80 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-3`}>
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'warning' ? 'bg-amber-500' : 'bg-cyan-500'}`}> 
+                    <div key={toast.id} className={`toast-animation bg-slate-800/80 dark:bg-slate-900/80 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-3
+                        ${toast.type === 'success' ? 'border-green-500' : ''}
+                        ${toast.type === 'error' ? 'border-red-500' : ''}
+                        ${toast.type === 'warning' ? 'border-amber-500' : ''}
+                        ${toast.type === 'info' ? 'border-cyan-500' : ''}
+                    `}>
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0
+                            ${toast.type === 'success' ? 'bg-green-500' : ''}
+                            ${toast.type === 'error' ? 'bg-red-500' : ''}
+                            ${toast.type === 'warning' ? 'bg-amber-500' : ''}
+                            ${toast.type === 'info' ? 'bg-cyan-500' : ''}
+                        `}> 
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
                         <p className="text-sm font-medium">{toast.message}</p>
@@ -410,7 +481,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     animation: slide-in-out 4s ease-in-out forwards;
                 }
                 @keyframes slide-in-out {
-                    0% { opacity: 0; transform: translateY(100%); }
+                    0% { opacity: 0; transform: translateY(100%); } 
                     10% { opacity: 1; transform: translateY(0); }
                     90% { opacity: 1; transform: translateY(0); }
                     100% { opacity: 0; transform: translateY(100%); }
@@ -507,6 +578,27 @@ const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children })
 
 const App: React.FC = () => {
     const { activeQuiz, quizToResume, setQuizToResume } = useQuiz();
+    const location = useLocation();
+    const navigate = useNavigate();
+    
+    // Inject addToast function into the API service
+    const { addToast } = useToast();
+    useEffect(() => {
+        setToastFunction(addToast);
+    }, [addToast]);
+
+    // Handle invite token from URL
+    useEffect(() => {
+      const params = new URLSearchParams(location.search);
+      const inviteToken = params.get('invite');
+      if (inviteToken) {
+        localStorage.setItem('qt_inviteToken', inviteToken);
+        // Remove invite parameter from URL
+        params.delete('invite');
+        navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+      }
+    }, [location, navigate]);
+
     const handleStartQuizFromHistory = (quizData: Quiz) => {
         setQuizToResume(quizData);
     };
@@ -519,8 +611,8 @@ const App: React.FC = () => {
             <div className="container mx-auto p-4 sm:p-6 md:p-8">
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
+                    <Route path="/login" element={<AuthPage />} />
+                    <Route path="/register" element={<AuthPage />} />
                     <Route path="/generate-text" element={<PrivateRoute><GenerateText /></PrivateRoute>} />
                     <Route path="/generate-pdf" element={<PrivateRoute><GeneratePDF /></PrivateRoute>} />
                     <Route path="/history" element={<HistoryPage onBack={handleBackToCreator} onRetake={handleStartQuizFromHistory} />} />
@@ -529,7 +621,16 @@ const App: React.FC = () => {
                     <Route path="/manage-devices" element={<PrivateRoute><ManageDevices /></PrivateRoute>} />
                     <Route path="/my-usage" element={<PrivateRoute><MyUsage /></PrivateRoute>} />
                     <Route path="/quiz" element={<QuizFlow initialQuiz={activeQuiz} quizToResume={quizToResume} onExit={handleBackToCreator} />} />
-                    <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                    <Route path="/dashboard" element={<PrivateRoute roles={['student','teacher','admin','owner']}><Dashboard /></PrivateRoute>} />
+                    <Route path="/teacher/dashboard" element={<PrivateRoute roles={['teacher']}><TeacherDashboard /></PrivateRoute>} />
+                    <Route path="/admin/dashboard" element={<PrivateRoute roles={['admin','owner']}><AdminDashboard /></PrivateRoute>} />
+                    <Route path="/join-course" element={<PrivateRoute><JoinCourse /></PrivateRoute>} />
+                    <Route path="/my-courses" element={<PrivateRoute><MyCourses /></PrivateRoute>} />
+                    <Route path="/courses/:id" element={<PrivateRoute><CourseDetails /></PrivateRoute>} />
+                    <Route path="/generate-from-material/:courseId/:materialId" element={<PrivateRoute><GenerateFromMaterial /></PrivateRoute>} />
+                    <Route path="/student/dashboard" element={<PrivateRoute roles={['student']}><StudentDashboard /></PrivateRoute>} />
+                    <Route path="/billing" element={<PrivateRoute><Billing /></PrivateRoute>} />
+                    <Route path="/teacher/courses/:courseId/manage-materials" element={<PrivateRoute roles={['teacher']}><ManageMaterials /></PrivateRoute>} />
                 </Routes>
             </div>
         </div>
@@ -537,16 +638,23 @@ const App: React.FC = () => {
 }
 
 const AppWrapper: React.FC = () => {
+    // Initialize deviceId on first visit
+    useEffect(() => {
+        if (!localStorage.getItem('qt_deviceId')) {
+            localStorage.setItem('qt_deviceId', crypto.randomUUID());
+        }
+    }, []); // Empty dependency array ensures this runs only once
+
     return (
-        <SettingsProvider>
-            <ToastProvider>
-                <AuthProvider>
+        <Router>
+            <SettingsProvider>
+                <ToastProvider>
                     <QuizProvider>
                         <App />
                     </QuizProvider>
-                </AuthProvider>
-            </ToastProvider>
-        </SettingsProvider>
+                </ToastProvider>
+            </SettingsProvider>
+        </Router>
     );
 };
 

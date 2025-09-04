@@ -6,6 +6,12 @@ import { BrowserRouter } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import './src/index.css';
 
+const DEVICE_KEY = 'qt_deviceId';
+if (!localStorage.getItem(DEVICE_KEY)) {
+  localStorage.setItem(DEVICE_KEY, crypto.randomUUID());
+}
+const deviceId = localStorage.getItem(DEVICE_KEY);
+
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

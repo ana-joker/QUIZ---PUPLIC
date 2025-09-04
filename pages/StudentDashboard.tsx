@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { api } from '../services/api';
 import { useTranslation } from '../App';
 
 // Assuming these types exist and will be expanded as needed
@@ -31,7 +31,7 @@ const StudentDashboard: React.FC = () => {
         const response = await api.get('/api/courses/my-courses');
         setCourses(response.data);
       } catch (err: any) {
-        const errorMessage = err.response?.data?.message || err.message || t('errorFetchingCourses');
+  const errorMessage = err.response?.data?.message || err.message || t('errorLoadingHistory');
         setError(errorMessage);
         console.error('Error fetching student courses:', err);
       } finally {
@@ -49,7 +49,7 @@ const StudentDashboard: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-50"><p>{t('loading')}</p></div>;
+  return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-50"><p>{t('loadingHistory')}</p></div>;
   }
 
   if (error) {
@@ -65,7 +65,7 @@ const StudentDashboard: React.FC = () => {
     >
       <h1 className="text-4xl font-bold mb-8 text-purple-500">{t('myCourses')}</h1>
       {courses.length === 0 ? (
-        <p className="text-slate-400">{t('noCoursesJoined')}</p>
+        <p className="text-slate-400">{t('noHistory')}</p>
       ) : (
         <div className="space-y-8">
           {courses.map(course => (
@@ -88,7 +88,7 @@ const StudentDashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-slate-400">{t('noMaterials')}</p>
+                <p className="text-slate-400">{t('noValidQuestions')}</p>
               )}
             </div>
           ))}

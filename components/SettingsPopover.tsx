@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSettings, useTranslation } from '../App';
 import { AppSettings } from '../types';
 import { XIcon } from './ui/Icons';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface SettingsPopoverProps {
@@ -15,7 +15,7 @@ interface SettingsPopoverProps {
 const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) => {
   const { settings, setSettings } = useSettings();
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'quiz' | 'general' | 'account'>('general');
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
@@ -184,7 +184,7 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
     <div className="space-y-4 text-sm">
         <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <p className="font-semibold text-gray-800 dark:text-gray-200">Hi, {user.name}</p>
-            <p className="text-gray-600 dark:text-gray-400">Plan: {user.planType}</p>
+            <p className="text-gray-600 dark:text-gray-400">Plan: {user.plan}</p>
             <p className="text-gray-600 dark:text-gray-400">Questions Today: {user.currentQuota} / {user.maxQuota}</p>
             {user.quotaResetDate && (
                 <p className="text-gray-600 dark:text-gray-400">Quota Resets: {new Date(user.quotaResetDate).toLocaleDateString()}</p>
@@ -196,9 +196,9 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
         <div className="space-y-2">
             <Link to="/manage-devices" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Manage Devices</Link>
             <Link to="/my-usage" onClick={onClose} className="block py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">My Usage</Link>
-            {(user.planType === 'free' || user.planType === 'guest') && (
-                <button onClick={() => { /* Navigate to upgrade page */ onClose(); }} className="w-full py-2 px-4 rounded-md text-white bg-blue-600 hover:bg-blue-700">Upgrade to Premium</button>
-            )}
+      {(user.plan === 'free' || user.plan === 'guest') && (
+        <button onClick={() => { /* Navigate to upgrade page */ onClose(); }} className="w-full py-2 px-4 rounded-md text-white bg-blue-600 hover:bg-blue-700">Upgrade to Premium</button>
+      )}
             {/* Future: Join Course Button */}
             {/* <button onClick={() => { /* Navigate to join course page */ /* onClose(); }} className="w-full py-2 px-4 rounded-md text-white bg-green-600 hover:bg-green-700">Join Course</button> */}
         </div>

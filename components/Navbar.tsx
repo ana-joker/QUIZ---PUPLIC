@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation, TranslationKey } from '../App';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isTeacher, isAdmin, isOwner, isPaid } = useAuthStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
@@ -39,21 +39,35 @@ const Navbar = () => {
 
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center space-x-4">
+          <Link to="/" className="hover:text-purple-400">{t('home')}</Link>
+          <Link to="/generate-text" className="hover:text-purple-400">{t('generate')}</Link>
+          <Link to="/history" className="hover:text-purple-400">{t('history')}</Link>
+          {user && <Link to="/my-courses" className="hover:text-purple-400">{t('myCourses')}</Link>}
+          {user && user.role === 'student' && <Link to="/join-course" className="hover:text-purple-400">{t('joinCourse')}</Link>}
+          {user && user.role === 'student' && <Link to="/student/dashboard" className="hover:text-purple-400">{t('dashboard')}</Link>}
+          {isTeacher && <Link to="/teacher/dashboard" className="hover:text-purple-400">{t('teacherDashboard')}</Link>}
+          {(isAdmin || isOwner) && <Link to="/admin/dashboard" className="hover:text-purple-400">{t('adminDashboard')}</Link>}
+
           {user ? (
-            <div className="relative">
-              <span className="text-sm text-gray-400 mr-4">
-                {t('remainingQuestionsInfo', { current: user.currentQuota, total: user.maxQuota })}
-                {user.isTrialActive && (
-                  <span className="ml-2 text-yellow-400">
-                    ({t('trialEndsOn', { date: new Date(user.trialEndDate).toLocaleDateString() })})
-                  </span>
-                )}
+            <div className="relative flex items-center space-x-2">
+              {/* Badge للخطة والدور */}
+              <span className="px-2 py-1 rounded bg-purple-700 text-xs font-bold mr-2">
+                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </span>
+              <span className={`px-2 py-1 rounded text-xs font-bold mr-2 ${isPaid ? 'bg-green-700' : 'bg-gray-700'}`}>{user.plan.toUpperCase()}</span>
+              {user.planSource && <span className="px-2 py-1 rounded bg-blue-700 text-xs font-bold mr-2">{user.planSource}</span>}
+              {user.planExpiresAt && <span className="text-yellow-400 text-xs">{t('trialEndsOn', { date: new Date(user.planExpiresAt).toLocaleDateString() })}</span>}
+              {/* عداد الكوتة اليومي حسب الخطة */}
+              {user.currentQuota !== undefined && user.maxQuota !== undefined && (
+                <span className="text-sm text-gray-400 mr-4">
+                  {t('questionsToday')}: {user.currentQuota}/{user.maxQuota}
+                </span>
+              )}
               <button
                 onClick={toggleDropdown}
                 className="flex items-center space-x-2 focus:outline-none"
               >
-                <span className="text-lg font-medium">Hi {user.name || 'User'}</span>
+                <span className="text-lg font-medium">{user.email}</span>
                 <svg
                   className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
                   fill="none"
@@ -74,19 +88,58 @@ const Navbar = () => {
                     className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-md shadow-lg py-1 z-50"
                   >
                     <Link
-                      to="/profile" // Assuming a profile page
+                      to="/dashboard"
                       className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      Profile
+                      {t('dashboard')}
                     </Link>
                     <Link
                       to="/settings"
                       className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      Settings
+                      {t('settingsGeneral')}
                     </Link>
+                    <Link
+                      to="/my-usage"
+                      className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      {t('myUsageTitle')}
+                    </Link>
+                    <Link
+                      to="/manage-devices"
+                      className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Manage Devices
+                    </Link>
+                    <Link
+                      to="/billing"
+                      className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Billing
+                    </Link>
+                    {isTeacher && (
+                      <Link
+                        to="/teacher/dashboard"
+                        className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        {t('teacherDashboard')}
+                      </Link>
+                    )}
+                    {(isAdmin || isOwner) && (
+                      <Link
+                        to="/admin/dashboard"
+                        className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        {t('adminDashboard')}
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-red-400 hover:bg-slate-700"
@@ -99,22 +152,9 @@ const Navbar = () => {
             </div>
           ) : (
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-400">
-                {t('guestQuestionsRemaining', { current: user?.currentQuota || 0, total: user?.maxQuota || 0 })}
-                <p className="text-xs text-gray-500 mt-1">{t('registerNowPrompt')}</p>
-              </span>
-              <Link
-                to="/login"
-                className="text-slate-50 hover:text-purple-400 transition-colors duration-200"
-              >
-                {t('login')}
-              </Link>
-              <Link
-                to="/register"
-                className="text-slate-50 hover:text-purple-400 transition-colors duration-200"
-              >
-                {t('register')}
-              </Link>
+              <span className="text-sm text-gray-400">{t('guestQuestionsRemaining', { count: 10 })}</span>
+              <Link to="/login" className="text-slate-50 hover:text-purple-400 transition-colors duration-200">{t('login')}</Link>
+              <Link to="/register" className="text-slate-50 hover:text-purple-400 transition-colors duration-200">{t('register')}</Link>
             </div>
           )}
         </div>
@@ -145,29 +185,59 @@ const Navbar = () => {
             variants={dropdownVariants} // Reusing dropdown variants for slide-down effect
             className="md:hidden bg-slate-800 absolute top-full left-0 w-full shadow-lg py-2"
           >
+            <Link to="/" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('home')}</Link>
+            <Link to="/generate-text" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('generate')}</Link>
+            <Link to="/history" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('history')}</Link>
+            {user && <Link to="/my-courses" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('myCourses')}</Link>}
+            {user && user.role === 'student' && <Link to="/join-course" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('joinCourse')}</Link>}
+            {user && user.role === 'student' && <Link to="/student/dashboard" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('dashboard')}</Link>}
+            {isTeacher && (
+              <Link to="/teacher/dashboard" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('teacherDashboard')}</Link>
+            )}
+            {(isAdmin || isOwner) && (
+              <Link to="/admin/dashboard" className="block px-4 py-2 hover:bg-slate-700" onClick={() => setIsMobileMenuOpen(false)}>{t('adminDashboard')}</Link>
+            )}
             {user ? (
               <div className="flex flex-col">
-                <span className="px-4 py-2 text-slate-50">
-                  {t('remainingQuestionsInfo', { current: user.currentQuota, total: user.maxQuota })}
-                  {user.isTrialActive && (
-                    <span className="ml-2 text-yellow-400">
-                      (فترتك التجريبية تنتهي في {new Date(user.trialEndDate).toLocaleDateString()})
-                    </span>
-                  )}
-                </span>
+                {user.currentQuota !== undefined && user.maxQuota !== undefined && (
+                  <span className="px-4 py-2 text-slate-50">
+                    {t('questionsToday')}: {user.currentQuota}/{user.maxQuota}
+                  </span>
+                )}
                 <Link
-                  to="/profile"
+                  to="/dashboard"
                   className="block px-4 py-2 text-slate-50 hover:bg-slate-700"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Profile
+                  {t('dashboard')}
                 </Link>
                 <Link
                   to="/settings"
                   className="block px-4 py-2 text-slate-50 hover:bg-slate-700"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Settings
+                  {t('settingsGeneral')}
+                </Link>
+                <Link
+                  to="/my-usage"
+                  className="block px-4 py-2 text-slate-50 hover:bg-slate-700"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {t('myUsageTitle')}
+                </Link>
+                <Link
+                  to="/manage-devices"
+                  className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Manage Devices
+                </Link>
+                <Link
+                  to="/billing"
+                  className="block px-4 py-2 text-sm text-slate-50 hover:bg-slate-700"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Billing
                 </Link>
                 <button
                   onClick={handleLogout}
@@ -179,22 +249,22 @@ const Navbar = () => {
             ) : (
               <div className="flex flex-col">
                 <span className="px-4 py-2 text-slate-50">
-                  أسئلة الضيف المتبقية: {user?.currentQuota || 0} / {user?.maxQuota || 0}
-                  <p className="text-xs text-gray-500 mt-1">سجل الآن للحصول على المزيد من الأسئلة!</p>
+                  {t('guestQuestionsRemaining', { count: 10 })}
+                  <p className="text-xs text-gray-500 mt-1">{t('registerNowPrompt')}</p>
                 </span>
                 <Link
                   to="/login"
                   className="block px-4 py-2 text-slate-50 hover:bg-slate-700"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Login
+                  {t('login')}
                 </Link>
                 <Link
                   to="/register"
                   className="block px-4 py-2 text-slate-50 hover:bg-slate-700"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Register
+                  {t('register')}
                 </Link>
               </div>
             )}
