@@ -437,7 +437,7 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-const useToast = () => {
+export const useToast = () => {
     const context = useContext(ToastContext);
     if (!context) throw new Error('useToast must be used within a ToastProvider');
     return context;
@@ -650,6 +650,5 @@ const AppWrapper: React.FC = () => {
     );
 };
 
-// Make the custom hook available for other components
-export { useToast };
+
 export default AppWrapper;

@@ -22,6 +22,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: undefined,
   deviceId: localStorage.getItem('qt_deviceId') || '', // Read deviceId from localStorage
   isAuthenticated: false,
+  usageToday: undefined,
 
   init: () => {
     const token = localStorage.getItem('qt_token') || undefined;

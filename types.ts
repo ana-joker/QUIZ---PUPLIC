@@ -101,6 +101,11 @@ export type AuthState = {
   token?: string;
   user?: User;
   deviceId: string;
+  usageToday?: {
+    usedGeneral: number;
+    capGeneral: number;
+    remainingGeneral: number;
+  };
 };
 
 export interface TeacherCourse {
