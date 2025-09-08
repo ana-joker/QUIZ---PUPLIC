@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api, quizApi } from '../services/api';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 import QuotaModal from '../components/QuotaModal';
 import DeviceLimitModal from '../components/DeviceLimitModal';
 import { saveQuizToIndexedDB } from '../services/indexedDbService';
@@ -113,7 +113,7 @@ const GeneratePage: React.FC = () => {
                 {loading && <LoadingOverlay />}
                 <div className="flex border-b border-slate-700 mb-4">
                     <button onClick={() => setActiveTab('text')} className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'text' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-slate-400'}`}>From Text</button>
-                    {user && user.type === 'student' && 
+                    {user && user.role === 'student' &&
                         <button onClick={() => setActiveTab('material')} className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'material' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-slate-400'}`}>From Course Material</button>}
                 </div>
                 {activeTab === 'text' && renderTextTab()}

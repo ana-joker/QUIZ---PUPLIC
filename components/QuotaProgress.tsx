@@ -1,10 +1,10 @@
 import React from 'react';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 
 const QuotaProgress: React.FC = () => {
   const { usageToday, user } = useAuthStore();
   if (!usageToday) return null;
-  if (user?.type === 'owner') return null;
+  if (user?.role === 'owner') return null;
   const percent = Math.min(100, Math.round((usageToday.usedGeneral / usageToday.capGeneral) * 100));
   return (
     <div className="w-full my-2">

@@ -9,7 +9,7 @@ import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
 import QuotaModal from './QuotaModal';
 import DeviceLimitModal from './DeviceLimitModal';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 interface QuizCreatorProps {

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 import UsageBadge from '../components/UsageBadge';
 import QuotaProgress from '../components/QuotaProgress';
 import { api } from '../services/api';
 
 const Dashboard: React.FC = () => {
-    const { user, usageToday, setUsageToday } = useAuthStore();
+    const { user } = useAuthStore();
     const [loadingUsage, setLoadingUsage] = useState(true);
+    const [usageToday, setUsageToday] = useState<any>(null);
 
     useEffect(() => {
         const fetchUsage = async () => {

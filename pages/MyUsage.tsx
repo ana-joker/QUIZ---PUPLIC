@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 import { useToast } from '../App';
 import { Loader2Icon } from '../components/ui/Icons';
 import { api } from '../services/api';

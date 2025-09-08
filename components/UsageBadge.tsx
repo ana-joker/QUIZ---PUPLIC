@@ -1,10 +1,10 @@
 import React from 'react';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 
 const UsageBadge: React.FC = () => {
   const { user, usageToday } = useAuthStore();
   if (!usageToday) return null;
-  if (user?.type === 'owner') return (
+  if (user?.role === 'owner') return (
     <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-600 text-white text-xs font-bold">∞</span>
   );
   return (

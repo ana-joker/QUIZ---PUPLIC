@@ -27,6 +27,7 @@ import ManageMaterials from './pages/ManageMaterials';
 
 
 import { QuizProvider, useQuiz } from './context/QuizContext';
+import { AuthStoreProvider } from './context/AuthStore';
 import { AppSettings, Quiz, RecallItem } from './types';
 import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
 import { setToastFunction } from './services/api';
@@ -638,13 +639,6 @@ const App: React.FC = () => {
 }
 
 const AppWrapper: React.FC = () => {
-    // Initialize deviceId on first visit
-    useEffect(() => {
-        if (!localStorage.getItem('qt_deviceId')) {
-            localStorage.setItem('qt_deviceId', crypto.randomUUID());
-        }
-    }, []); // Empty dependency array ensures this runs only once
-
     return (
         <SettingsProvider>
             <ToastProvider>
