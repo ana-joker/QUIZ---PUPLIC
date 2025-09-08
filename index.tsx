@@ -1,7 +1,6 @@
-```tsx
-import { StrictMode } from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
-import AppWrapper from './App';
+import { default as AppWrapper } from './App';
 import { BrowserRouter } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import './src/index.css';
@@ -20,12 +19,11 @@ if (!rootElement) {
 
 const root = createRoot(rootElement);
 root.render(
-  <StrictMode>
+  <React.StrictMode>
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <BrowserRouter>
-        <App />
+        <AppWrapper />
       </BrowserRouter>
     </GoogleOAuthProvider>
-  </StrictMode>
+  </React.StrictMode>
 );
-```
