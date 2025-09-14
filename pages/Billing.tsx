@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion } from 'framer-motion';
-import { api } from '../services/api';
+import { userApi } from '../services/api';
 import { useAuthStore } from '../context/AuthContext';
 
 const BillingPage: React.FC = () => {
@@ -37,9 +37,7 @@ const BillingPage: React.FC = () => {
         formData.append('method', 'manual_upload');
 
         try {
-            await api.post('/api/payments/new', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            await userApi.uploadPaymentReceipt(file, 'premium'); // Assuming premium plan for now
             setSuccess('Your payment has been submitted for review. Your plan will be updated upon approval.');
             setFile(null);
             setReference('');

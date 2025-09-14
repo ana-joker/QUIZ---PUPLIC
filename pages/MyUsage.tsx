@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../context/AuthContext';
 import { useToast } from '../App';
 import { Loader2Icon } from '../components/ui/Icons';
-import { api } from '../services/api';
+import { userApi } from '../services/api';
 import UsageBadge from '../components/UsageBadge';
 import QuotaProgress from '../components/QuotaProgress';
 import { Link } from 'react-router-dom';
@@ -18,7 +18,7 @@ const MyUsage: React.FC = () => {
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    api.get('/api/me/usage', { headers: { Authorization: `Bearer ${token}` } })
+    userApi.getUsage()
       .then(res => setUsage(res.data))
       .catch(() => {
         setError('فشل تحميل سجل الاستخدام.');

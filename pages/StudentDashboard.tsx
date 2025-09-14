@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { coursesApi } from '../services/api';
 import { useTranslation } from '../App';
 
 // Assuming these types exist and will be expanded as needed
@@ -28,7 +28,7 @@ const StudentDashboard: React.FC = () => {
   useEffect(() => {
     const fetchStudentCourses = async () => {
       try {
-        const response = await api.get('/api/courses/my-courses');
+        const response = await coursesApi.getMyCourses();
         setCourses(response.data);
       } catch (err: any) {
   const errorMessage = err.response?.data?.message || err.message || t('errorLoadingHistory');

@@ -65,12 +65,11 @@ export interface AppSettings {
   theme: 'light' | 'dark';
   fontSize: 'small' | 'medium' | 'large';
   uiLanguage: 'ar' | 'en';
-  
+
   // --- Model Parameters ---
   temperature: number;
   topP: number;
   topK: number;
-  apiKey?: string;
 }
 
 export interface Device { // 💡 AZIZ: تعريف Device interface

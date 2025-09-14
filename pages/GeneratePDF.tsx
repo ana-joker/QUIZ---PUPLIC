@@ -34,7 +34,6 @@ const GeneratePDFPage: React.FC = () => {
         temperature: 0.5,
         topP: 0.95,
         topK: 40,
-        apiKey: '',
     });
     const [generatedQuiz, setGeneratedQuiz] = useState<Quiz | null>(null);
     const [loading, setLoading] = useState(false);
@@ -84,7 +83,8 @@ const GeneratePDFPage: React.FC = () => {
                 formData.append('deviceId', deviceId);
                 response = await api.post('/api/quiz/pdf', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             } else if (payload.source) {
-                response = await api.post('/api/quiz/text', { source: payload.source, settings });
+                const { courseId, materialId } = payload.source as any;
+                response = await api.post('/api/quiz/material', { courseId, materialId, settings });
             } else {
                 throw new Error('No generation source provided.');
             }

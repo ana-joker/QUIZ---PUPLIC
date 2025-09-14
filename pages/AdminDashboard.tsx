@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import AdminDashboardLayout from '../components/admin/AdminDashboardLayout';
-import { api } from '../services/api';
+import { adminApi } from '../services/api';
 import { PaymentManagement } from '../components/PaymentManagement';
 import { CourseManagement } from '../components/CourseManagement';
 import { SiteSettings } from '../components/SiteSettings';
@@ -120,8 +120,8 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       const [usersResponse, statsResponse] = await Promise.all([
-        api.get<{ users: User[] }>('/api/admin/users'),
-        api.get<Statistics>('/api/admin/statistics')
+        adminApi.getUsers(),
+        adminApi.getStatistics()
       ]);
       setUsers(usersResponse.data.users);
       setStatistics(statsResponse.data);
@@ -137,7 +137,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleSaveUserChanges = async (userId: string, role: User['role'], plan: User['plan']) => {
     try {
-      await api.put(`/api/admin/users/${userId}`, { role, plan });
+      await adminApi.updateUser(userId, { role, plan });
       addToast('User updated successfully!', 'success');
       fetchData(); // Refresh data
     } catch (err: any) {
@@ -150,7 +150,7 @@ const AdminDashboard: React.FC = () => {
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       try {
-        await api.delete(`/api/admin/users/${userId}`);
+        await adminApi.deleteUser(userId);
         addToast('User deleted successfully!', 'success');
         fetchData();
       } catch (err: any) {

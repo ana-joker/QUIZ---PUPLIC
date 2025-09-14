@@ -48,7 +48,7 @@ export function checkGuestQuota(requested: number = 1) {
   return true;
 }
 import axios from 'axios';
-import { useAuthStore } from '../context/AuthStore';
+import { useAuthStore } from '../context/AuthContext';
 
 // Toast function setter
 let addToast = null;
@@ -63,7 +63,7 @@ export const api = axios.create({
 api.interceptors.request.use(config => {
   try {
     // Use AuthStore directly (not hook)
-    const { token, deviceId } = require('../context/AuthStore').useAuthStore.getState();
+    const { token, deviceId } = require('../context/AuthContext').useAuthStore.getState();
     if (token) config.headers.Authorization = `Bearer ${token}`;
     if (deviceId) config.headers['X-Device-Id'] = deviceId;
   } catch {}
@@ -83,7 +83,7 @@ api.interceptors.response.use(
       const { status, data } = error.response;
       if (status === 401) {
         // Unauthorized: logout
-        try { require('../context/AuthStore').useAuthStore.getState().logout(); } catch {}
+        try { require('../context/AuthContext').useAuthStore.getState().logout(); } catch {}
         if (addToast) addToast('انتهت الجلسة، يرجى تسجيل الدخول مجددًا', 'error');
       } else if (status === 402) {
         // Quota exceeded
@@ -104,6 +104,33 @@ api.interceptors.response.use(
 );
 
 // API Functions
+export const authApi = {
+  login: (email: string, password: string, deviceName: string) => api.post('/api/auth/login', { email, password, deviceName }),
+  register: (name: string, email: string, password: string, deviceName: string) => api.post('/api/auth/register', { name, email, password, deviceName }),
+  loginWithCode: (code: string, deviceName: string) => api.post('/api/auth/login-with-code', { code, deviceName }),
+  logout: () => api.post('/api/auth/logout'),
+  changePassword: (oldPassword: string, newPassword: string) => api.post('/api/auth/change-password', { oldPassword, newPassword }),
+  getDevices: () => api.get('/api/auth/devices'),
+  removeDevice: (deviceId: string) => api.delete(`/api/auth/devices/${deviceId}`),
+  refreshToken: () => api.post('/api/auth/refresh'),
+};
+
+export const userApi = {
+  getProfile: () => api.get('/api/user/profile'),
+  updateProfile: (data: any) => api.put('/api/user/profile', data),
+  getUsage: () => api.get('/api/user/usage'),
+  getBillingHistory: () => api.get('/api/user/billing'),
+  uploadPaymentReceipt: (file: File, plan: string) => {
+    const formData = new FormData();
+    formData.append('receipt', file);
+    formData.append('plan', plan);
+    return api.post('/api/user/billing/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  upgradePlan: (plan: string) => api.post('/api/user/upgrade', { plan }),
+};
+
 export const quizApi = {
   generateFromText: (settings: any, text: string) => api.post('/api/quiz/text', { settings, text }),
   generateFromPdf: (settings: any, pdfFile: File) => {
@@ -117,8 +144,25 @@ export const quizApi = {
     });
   },
   generateFromMaterial: (settings: any, courseId: string, materialId: string) => api.post('/api/quiz/material', { settings, courseId, materialId }),
+  getHistory: () => api.get('/api/quiz/history'),
+  deleteQuiz: (quizId: string) => api.delete(`/api/quiz/${quizId}`),
 };
 
 export const coursesApi = {
+  getMyCourses: () => api.get('/api/courses/my'),
   joinCourse: (code: string) => api.post('/api/courses/join', { code }),
+  getCourseDetails: (courseId: string) => api.get(`/api/courses/${courseId}`),
+  getMaterials: (courseId: string) => api.get(`/api/courses/${courseId}/materials`),
+  createCourse: (data: any) => api.post('/api/courses', data),
+  updateCourse: (courseId: string, data: any) => api.put(`/api/courses/${courseId}`, data),
+  deleteCourse: (courseId: string) => api.delete(`/api/courses/${courseId}`),
+};
+
+export const adminApi = {
+  getUsers: (page?: number, limit?: number) => api.get('/api/admin/users', { params: { page, limit } }),
+  getUserDetails: (userId: string) => api.get(`/api/admin/users/${userId}`),
+  updateUser: (userId: string, data: any) => api.put(`/api/admin/users/${userId}`, data),
+  deleteUser: (userId: string) => api.delete(`/api/admin/users/${userId}`),
+  getStatistics: () => api.get('/api/admin/statistics'),
+  getSystemLogs: (page?: number, limit?: number) => api.get('/api/admin/logs', { params: { page, limit } }),
 };

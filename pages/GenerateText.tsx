@@ -20,7 +20,7 @@ const GeneratePage: React.FC = () => {
         numMCQs: '10',
         numCases: '0',
         questionsPerCase: '2',
-    difficulty: 'medium',
+        difficulty: 'medium',
         quizLanguage: 'ar',
         explanationLanguage: 'ar',
         numImageQuestions: '0',
@@ -32,7 +32,6 @@ const GeneratePage: React.FC = () => {
         temperature: 0.5,
         topP: 0.95,
         topK: 40,
-        apiKey: '',
     });
     const [generatedQuiz, setGeneratedQuiz] = useState<Quiz | null>(null);
     const [loading, setLoading] = useState(false);

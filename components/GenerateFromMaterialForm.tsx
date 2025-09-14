@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { api, quizApi } from '../services/api';
+import { coursesApi, quizApi } from '../services/api';
 import { AppSettings } from '../types';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../App';
 import { useTranslation } from '../App';
 
 interface EnrolledCourse {
@@ -27,7 +27,7 @@ export const GenerateFromMaterialForm: React.FC<GenerateFromMaterialFormProps> =
     useEffect(() => {
         const fetchCourses = async () => {
             try {
-                const response = await api.get('/api/courses/my');
+                const response = await coursesApi.getMyCourses();
                 setEnrolledCourses(response.data.courses || []);
             } catch (err) {
                 setError(t('errorLoadingCourses') || 'Could not load your courses.');

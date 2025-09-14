@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../context/AuthContext';
 import { useToast } from '../App';
 import { Loader2Icon, XIcon } from '../components/ui/Icons';
-import { api } from '../services/api';
+import { authApi } from '../services/api';
 
 const ManageDevices: React.FC = () => {
 	const { user, token, deviceId } = useAuthStore();
@@ -15,7 +15,7 @@ const ManageDevices: React.FC = () => {
 	useEffect(() => {
 		if (!token) return;
 		setLoading(true);
-		api.get('/api/auth/devices', { headers: { Authorization: `Bearer ${token}` } })
+		authApi.getDevices()
 			.then(res => setDevices(res.data.devices || []))
 			.catch(() => setError('فشل تحميل الأجهزة.'))
 			.finally(() => setLoading(false));
@@ -23,7 +23,7 @@ const ManageDevices: React.FC = () => {
 
 	const handleRemove = (id: string) => {
 		setRemoving(id);
-		api.delete(`/api/auth/devices/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+		authApi.removeDevice(id)
 			.then(() => {
 				setDevices(devices.filter(d => d.deviceId !== id));
 				addToast('تم تسجيل الخروج من الجهاز بنجاح', 'success');

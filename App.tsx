@@ -4,7 +4,7 @@ import Home from "./pages/Home";
 import AuthPage from "./pages/AuthPage";
 import GenerateText from "./pages/GenerateText";
 import GeneratePDF from "./pages/GeneratePDF";
-import PrivateRoute from "./components/PrivateRoute"; // 💡 AZIZ: تأكد من أن PrivateRoute يتعامل مع الأدوار
+import PrivateRoute from "./components/PrivateRoute";
 import Navbar from "./components/Navbar";
 import HistoryPage from './components/HistoryPage';
 import RecallPage from './components/RecallPage';
@@ -15,11 +15,10 @@ import QuizFlow from './components/QuizFlow';
 
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
-// 💡 AZIZ: إضافة استيرادات المكونات الجديدة
-import JoinCourse from './pages/JoinCourse'; // 💡 AZIZ: افتراض المسار الصحيح
-import GenerateFromMaterial from './pages/GenerateFromMaterial'; // 💡 AZIZ: افتراض المسار الصحيح
-import StudentDashboard from './pages/StudentDashboard'; // 💡 AZIZ: افتراض المسار الصحيح
-import TeacherDashboard from './pages/TeacherDashboard'; // 💡 AZIZ: افتراض المسار الصحيح
+import JoinCourse from './pages/JoinCourse';
+import GenerateFromMaterial from './pages/GenerateFromMaterial';
+import StudentDashboard from './pages/StudentDashboard';
+import TeacherDashboard from './pages/TeacherDashboard';
 import MyCourses from './pages/MyCourses';
 import CourseDetails from './pages/CourseDetails';
 import Billing from './pages/Billing';
@@ -27,7 +26,7 @@ import ManageMaterials from './pages/ManageMaterials';
 
 
 import { QuizProvider, useQuiz } from './context/QuizContext';
-import { AuthStoreProvider } from './context/AuthStore';
+
 import { AppSettings, Quiz, RecallItem } from './types';
 import { RECALL_STORAGE_KEY, SETTINGS_STORAGE_KEY } from './constants';
 import { setToastFunction } from './services/api';
@@ -510,7 +509,6 @@ const defaultSettings: AppSettings = {
     quizLanguage: 'English',
     explanationLanguage: 'English',
     questionTypes: ['MCQ'], // Default to MCQ as per new design
-    apiKey: '', // Initialize apiKey
 };
 
 interface SettingsContextType {

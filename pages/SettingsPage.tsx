@@ -4,7 +4,7 @@ import { AppSettings } from '../types';
 import { useAuthStore } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { api } from '../services/api';
+import { authApi } from '../services/api';
 
 const SettingsPage: React.FC = () => {
   const { settings, setSettings } = useSettings();
@@ -161,7 +161,7 @@ const SettingsPage: React.FC = () => {
         setPasswordError('');
         setPasswordSuccess('');
         try {
-            await api.post('/api/auth/change-password', { oldPassword, newPassword });
+            await authApi.changePassword(oldPassword, newPassword);
             setPasswordSuccess('Password changed successfully!');
             setOldPassword('');
             setNewPassword('');

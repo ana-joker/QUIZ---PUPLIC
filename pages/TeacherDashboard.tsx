@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { api } from '../services/api';
+import { coursesApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { TeacherCourse } from '../types'; // Import TeacherCourse from types.ts
 import { useToast } from '../App'; // Import useToast
@@ -17,7 +17,7 @@ const CreateCourseModal = ({ onClose, onCourseCreated }: { onClose: () => void; 
         setLoading(true);
         setError('');
         try {
-            await api.post('/api/teacher/courses', { title, description });
+            await coursesApi.createCourse({ title, description });
             addToast('Course created successfully!', 'success');
             onCourseCreated(); // Refresh the list in the parent component
             onClose(); // Close the modal
@@ -60,7 +60,7 @@ const TeacherDashboard: React.FC = () => {
     setLoading(true);
     try {
       // Assuming /api/teacher/courses is the endpoint for fetching teacher-owned courses
-      const response = await api.get('/api/teacher/courses');
+      const response = await coursesApi.getMyCourses();
       setCourses(response.data.courses || []);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to fetch courses.';
