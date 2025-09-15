@@ -22,12 +22,20 @@ const GeneratePDFPage: React.FC = () => {
         numMCQs: '10',
         numCases: '0',
         questionsPerCase: '2', // Added missing property
-    difficulty: 'medium',
+        difficulty: 'medium',
         quizLanguage: 'en',
         explanationLanguage: 'en',
         numImageQuestions: '0',
         additionalInstructions: '',
         questionTypes: ['MCQ'],
+        shuffleAnswers: true,
+        includeImages: false,
+        timePerQuestion: 60,
+        totalTime: 0,
+        randomSeed: '',
+        language: 'en',
+        previewMode: false,
+        saveTemplate: false,
         theme: 'dark',
         fontSize: 'medium',
         uiLanguage: 'en',
@@ -144,20 +152,135 @@ const GeneratePDFPage: React.FC = () => {
                 <h2 className="text-xl font-bold mt-6 mb-4 text-purple-400">Quiz Settings</h2>
                 <div className="space-y-4">
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-slate-300">Number of MCQs: {settings.numMCQs}</label>
-                        <input type="range" min="0" max="50" value={settings.numMCQs} onChange={(e) => setSettings({...settings, numMCQs: e.target.value})} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+                        <label className="block mb-2 text-sm font-medium text-slate-300">Number of Questions: {settings.numMCQs}</label>
+                        <input type="range" min="1" max="50" value={settings.numMCQs} onChange={(e) => setSettings({...settings, numMCQs: e.target.value})} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
                     </div>
-                     <div>
-                        <label className="block mb-2 text-sm font-medium text-slate-300">Number of Cases: {settings.numCases}</label>
-                        <input type="range" min="0" max="10" value={settings.numCases} onChange={(e) => setSettings({...settings, numCases: e.target.value})} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-slate-300">Question Types</label>
+                        <div className="flex flex-wrap gap-2">
+                            {["MCQ", "TrueFalse", "ShortAnswer"].map(type => (
+                                <button 
+                                    key={type}
+                                    onClick={() => {
+                                        const currentTypes = settings.questionTypes || [];
+                                        if (currentTypes.includes(type)) {
+                                            setSettings({...settings, questionTypes: currentTypes.filter(t => t !== type)});
+                                        } else {
+                                            setSettings({...settings, questionTypes: [...currentTypes, type]});
+                                        }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-md text-sm ${settings.questionTypes?.includes(type) ? 'bg-purple-600' : 'bg-slate-700'}`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                     <div>
+                    <div>
                         <label className="block mb-2 text-sm font-medium text-slate-300">Difficulty</label>
                         <div className="flex gap-4">
                             <button onClick={() => setSettings({...settings, difficulty: 'easy'})} className={`px-4 py-2 rounded-md ${settings.difficulty === 'easy' ? 'bg-purple-600' : 'bg-slate-700'}`}>Easy</button>
                             <button onClick={() => setSettings({...settings, difficulty: 'medium'})} className={`px-4 py-2 rounded-md ${settings.difficulty === 'medium' ? 'bg-purple-600' : 'bg-slate-700'}`}>Medium</button>
                             <button onClick={() => setSettings({...settings, difficulty: 'hard'})} className={`px-4 py-2 rounded-md ${settings.difficulty === 'hard' ? 'bg-purple-600' : 'bg-slate-700'}`}>Hard</button>
+                            <button onClick={() => setSettings({...settings, difficulty: 'mixed'})} className={`px-4 py-2 rounded-md ${settings.difficulty === 'mixed' ? 'bg-purple-600' : 'bg-slate-700'}`}>Mixed</button>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="checkbox" 
+                            id="shuffleAnswers" 
+                            checked={settings.shuffleAnswers || false} 
+                            onChange={(e) => setSettings({...settings, shuffleAnswers: e.target.checked})}
+                            className="w-4 h-4 text-purple-600 bg-slate-700 border-slate-600 rounded focus:ring-purple-500"
+                        />
+                        <label htmlFor="shuffleAnswers" className="text-sm font-medium text-slate-300">Shuffle Answers</label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="checkbox" 
+                            id="includeImages" 
+                            checked={settings.includeImages || false} 
+                            onChange={(e) => setSettings({...settings, includeImages: e.target.checked})}
+                            className="w-4 h-4 text-purple-600 bg-slate-700 border-slate-600 rounded focus:ring-purple-500"
+                        />
+                        <label htmlFor="includeImages" className="text-sm font-medium text-slate-300">Include Images</label>
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-slate-300">Time Settings</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs text-slate-400 mb-1">Time per question (seconds)</label>
+                                <input 
+                                    type="number" 
+                                    min="10" 
+                                    max="300" 
+                                    value={settings.timePerQuestion || 60} 
+                                    onChange={(e) => setSettings({...settings, timePerQuestion: parseInt(e.target.value)})}
+                                    className="w-full p-2 rounded-md bg-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-400 mb-1">Total time (minutes, 0 for no limit)</label>
+                                <input 
+                                    type="number" 
+                                    min="0" 
+                                    max="180" 
+                                    value={settings.totalTime || 0} 
+                                    onChange={(e) => setSettings({...settings, totalTime: parseInt(e.target.value)})}
+                                    className="w-full p-2 rounded-md bg-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-slate-300">Language</label>
+                        <div className="flex gap-4">
+                            <button onClick={() => setSettings({...settings, language: 'ar'})} className={`px-4 py-2 rounded-md ${settings.language === 'ar' ? 'bg-purple-600' : 'bg-slate-700'}`}>Arabic</button>
+                            <button onClick={() => setSettings({...settings, language: 'en'})} className={`px-4 py-2 rounded-md ${settings.language === 'en' ? 'bg-purple-600' : 'bg-slate-700'}`}>English</button>
+                            <button onClick={() => setSettings({...settings, language: 'auto'})} className={`px-4 py-2 rounded-md ${settings.language === 'auto' ? 'bg-purple-600' : 'bg-slate-700'}`}>Auto-detect</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-slate-300">Random Seed (optional)</label>
+                        <input 
+                            type="text" 
+                            value={settings.randomSeed || ''} 
+                            onChange={(e) => setSettings({...settings, randomSeed: e.target.value})}
+                            placeholder="Enter a seed for reproducible results"
+                            className="w-full p-2 rounded-md bg-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-slate-300">Additional Instructions</label>
+                        <textarea 
+                            value={settings.additionalInstructions || ''} 
+                            onChange={(e) => setSettings({...settings, additionalInstructions: e.target.value})}
+                            placeholder="Enter any specific requirements for the quiz"
+                            rows={3}
+                            className="w-full p-2 rounded-md bg-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="checkbox" 
+                            id="saveTemplate" 
+                            checked={settings.saveTemplate || false} 
+                            onChange={(e) => setSettings({...settings, saveTemplate: e.target.checked})}
+                            className="w-4 h-4 text-purple-600 bg-slate-700 border-slate-600 rounded focus:ring-purple-500"
+                        />
+                        <label htmlFor="saveTemplate" className="text-sm font-medium text-slate-300">Save as Template</label>
+                    </div>
+                    <div>
+                        <button 
+                            onClick={() => {
+                                setSettings({...settings, previewMode: true});
+                                handleGenerateQuiz({ file });
+                            }} 
+                            disabled={loading || !file} 
+                            className="w-full py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors disabled:opacity-50"
+                        >
+                            Preview (Generate 1-3 sample questions)
+                        </button>
                     </div>
                 </div>
                 {error && <p className="text-red-500 mt-4 text-center">{error}</p>}

@@ -144,8 +144,13 @@ export const quizApi = {
     });
   },
   generateFromMaterial: (settings: any, courseId: string, materialId: string) => api.post('/api/quiz/material', { settings, courseId, materialId }),
+  generateExam: (payload: any) => api.post('/api/exams/generate', payload),
+  getJobStatus: (jobId: string) => api.get(`/api/jobs/${jobId}/status`),
+  getExam: (examId: string) => api.get(`/api/exams/${examId}`),
+  getExamPdf: (examId: string) => api.get(`/api/exams/${examId}/pdf`),
   getHistory: () => api.get('/api/quiz/history'),
   deleteQuiz: (quizId: string) => api.delete(`/api/quiz/${quizId}`),
+  deleteExam: (examId: string) => api.delete(`/api/exams/${examId}`),
 };
 
 export const coursesApi = {

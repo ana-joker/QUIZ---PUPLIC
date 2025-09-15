@@ -60,6 +60,14 @@ export interface AppSettings {
   numImageQuestions: string;
   additionalInstructions: string;
   questionTypes: string[];
+  shuffleAnswers: boolean;
+  includeImages: boolean;
+  timePerQuestion: number;
+  totalTime: number;
+  randomSeed: string;
+  language: string;
+  previewMode: boolean;
+  saveTemplate: boolean;
 
   // --- General App Settings ---
   theme: 'light' | 'dark';
@@ -116,3 +124,12 @@ export interface TeacherCourse {
   students: any[];
 }
 
+export interface Course {
+  _id: string;
+  name: string;
+}
+
+export interface Template {
+  _id: string;
+  name: string;
+}
