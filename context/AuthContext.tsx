@@ -44,10 +44,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user, token, isAuthenticated: true });
   },
 
-  logout: () => {
-    localStorage.removeItem('qt_token');
-    localStorage.removeItem('qt_user');
-    set({ user: undefined, token: undefined, isAuthenticated: false });
+  logout: async () => {
+    try {
+      const { token } = get();
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('qt_token');
+      localStorage.removeItem('qt_user');
+      set({ user: undefined, token: undefined, isAuthenticated: false });
+    }
   },
 
   setUser: (user: User) => {

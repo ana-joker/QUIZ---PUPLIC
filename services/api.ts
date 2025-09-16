@@ -116,19 +116,19 @@ export const authApi = {
 };
 
 export const userApi = {
-  getProfile: () => api.get('/api/user/profile'),
+  getProfile: () => api.get('/api/auth/me'),
   updateProfile: (data: any) => api.put('/api/user/profile', data),
-  getUsage: () => api.get('/api/user/usage'),
+  getUsage: () => api.get('/api/usage/today'),
   getBillingHistory: () => api.get('/api/user/billing'),
   uploadPaymentReceipt: (file: File, plan: string) => {
     const formData = new FormData();
     formData.append('receipt', file);
     formData.append('plan', plan);
-    return api.post('/api/user/billing/upload', formData, {
+    return api.post('/api/billing/manual/create', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  upgradePlan: (plan: string) => api.post('/api/user/upgrade', { plan }),
+  upgradePlan: (plan: string) => api.post('/api/billing/subscribe', { plan }),
 };
 
 export const quizApi = {
@@ -168,6 +168,6 @@ export const adminApi = {
   getUserDetails: (userId: string) => api.get(`/api/admin/users/${userId}`),
   updateUser: (userId: string, data: any) => api.put(`/api/admin/users/${userId}`, data),
   deleteUser: (userId: string) => api.delete(`/api/admin/users/${userId}`),
-  getStatistics: () => api.get('/api/admin/statistics'),
+  getStatistics: () => api.get('/api/admin/metrics'),
   getSystemLogs: (page?: number, limit?: number) => api.get('/api/admin/logs', { params: { page, limit } }),
 };
