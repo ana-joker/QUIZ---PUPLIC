@@ -6,6 +6,7 @@ import { AppSettings } from '../types';
 import { XIcon } from './ui/Icons';
 import { useAuthStore } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { saveSettingsToIndexedDB, getSettingsFromIndexedDB } from '../services/indexedDbService';
 
 interface SettingsPopoverProps {
   isOpen: boolean;
@@ -20,18 +21,29 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ isOpen, onClose }) =>
   const [activeTab, setActiveTab] = useState<'quiz' | 'general' | 'account'>('general');
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
 
-  // When the popover is opened, reset the local state to match the global context.
+  // When the popover is opened, load settings from IndexedDB and merge with global context.
   useEffect(() => {
     if (isOpen) {
-      setLocalSettings(settings);
+      const loadSettings = async () => {
+        const userId = user ? (user as any)._id || (user as any).id || 'guest' : 'guest';
+        const savedSettings = await getSettingsFromIndexedDB(userId);
+        if (savedSettings) {
+          setLocalSettings({ ...settings, ...savedSettings });
+        } else {
+          setLocalSettings(settings);
+        }
+      };
+      loadSettings();
     }
-  }, [isOpen, settings]);
+  }, [isOpen, settings, user]);
 
-  // Save the local state to the global context and close the popover.
-  const handleSaveAndClose = useCallback(() => {
+  // Save the local state to the global context and IndexedDB, then close the popover.
+  const handleSaveAndClose = useCallback(async () => {
     setSettings(localSettings);
+    const userId = user ? (user as any)._id || (user as any).id || 'guest' : 'guest';
+    await saveSettingsToIndexedDB(localSettings, userId);
     onClose();
-  }, [localSettings, setSettings, onClose]);
+  }, [localSettings, setSettings, onClose, user]);
     
   // Handle escape key to close and save.
   useEffect(() => {

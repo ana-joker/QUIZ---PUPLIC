@@ -5,7 +5,6 @@ import { GUEST_MAX_QUESTIONS } from '../constants';
 import { User } from '../types';
 import { Loader2Icon, FileTextIcon, ImageIcon, XIcon, ArrowRightIcon, Sparkles, UserCheck, UserIcon } from './ui/Icons';
 import { useSettings, useTranslation, useToast } from '../App';
-import { saveQuizToIndexedDB } from '../services/indexedDbService';
 import { generateQuizContent } from '../services/geminiService';
 import QuotaModal from './QuotaModal';
 import DeviceLimitModal from './DeviceLimitModal';
